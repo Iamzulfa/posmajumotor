@@ -1,49 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
 import '../../../../config/routes/app_routes.dart';
+import '../../../../config/constants/supabase_config.dart';
 import '../../../widgets/common/sync_status_widget.dart';
+import '../../../widgets/common/loading_widget.dart';
+import '../../../providers/dashboard_provider.dart';
+import '../../../providers/auth_provider.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (SupabaseConfig.isConfigured) {
+      Future.microtask(() {
+        ref.read(dashboardProvider.notifier).loadDashboardData();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final dashboardState = ref.watch(dashboardProvider);
+    final isOnline = SupabaseConfig.isConfigured;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProfitCard(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildTaxIndicator(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildQuickStats(),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildTrendChart(),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildTierBreakdown(),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
+        child: dashboardState.isLoading
+            ? const LoadingWidget()
+            : RefreshIndicator(
+                onRefresh: () async {
+                  if (isOnline) {
+                    await ref
+                        .read(dashboardProvider.notifier)
+                        .loadDashboardData();
+                  }
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(context, isOnline),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildProfitCard(dashboardState, isOnline),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildTaxIndicator(dashboardState, isOnline),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildQuickStats(dashboardState, isOnline),
+                            const SizedBox(height: AppSpacing.lg),
+                            _buildTrendChart(),
+                            const SizedBox(height: AppSpacing.lg),
+                            _buildTierBreakdown(dashboardState, isOnline),
+                            const SizedBox(height: AppSpacing.lg),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isOnline) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -64,24 +101,32 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  const Text(
-                    '14 Desember 2025',
-                    style: TextStyle(fontSize: 14, color: AppColors.textGray),
+                  Text(
+                    _formatDate(DateTime.now()),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textGray,
+                    ),
                   ),
                 ],
               ),
               IconButton(
                 icon: const Icon(Icons.logout),
-                onPressed: () => context.go(AppRoutes.login),
+                onPressed: () async {
+                  if (isOnline) {
+                    await ref.read(authProvider.notifier).signOut();
+                  }
+                  if (mounted) context.go(AppRoutes.login);
+                },
                 color: AppColors.textGray,
                 tooltip: 'Logout',
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          const SyncStatusWidget(
-            status: SyncStatus.online,
-            lastSyncTime: '2 min ago',
+          SyncStatusWidget(
+            status: isOnline ? SyncStatus.online : SyncStatus.offline,
+            lastSyncTime: isOnline ? 'Real-time' : 'Offline mode',
           ),
         ],
       ),
@@ -95,7 +140,30 @@ class DashboardScreen extends StatelessWidget {
     return 'Selamat Malam, Admin';
   }
 
-  Widget _buildProfitCard() {
+  String _formatDate(DateTime date) {
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Widget _buildProfitCard(DashboardState state, bool isOnline) {
+    final profit = isOnline ? state.todayProfit : 2450000;
+    final omset = isOnline ? state.todayOmset : 8500000;
+    final hpp = isOnline ? state.todayHpp : 5200000;
+    final expenses = isOnline ? state.todayExpenses : 850000;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -114,9 +182,9 @@ class DashboardScreen extends StatelessWidget {
             style: TextStyle(fontSize: 14, color: Colors.white70),
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Text(
-            'Rp 2.450.000',
-            style: TextStyle(
+          Text(
+            'Rp ${_formatNumber(profit)}',
+            style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -132,11 +200,11 @@ class DashboardScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildProfitDetail('Penjualan', 'Rp 8.5M'),
+                _buildProfitDetail('Penjualan', _formatCompact(omset)),
                 Container(width: 1, height: 30, color: Colors.white24),
-                _buildProfitDetail('HPP', 'Rp 5.2M'),
+                _buildProfitDetail('HPP', _formatCompact(hpp)),
                 Container(width: 1, height: 30, color: Colors.white24),
-                _buildProfitDetail('Pengeluaran', 'Rp 850K'),
+                _buildProfitDetail('Pengeluaran', _formatCompact(expenses)),
               ],
             ),
           ),
@@ -165,10 +233,13 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTaxIndicator() {
-    const taxAmount = 42500;
-    const targetAmount = 85000;
-    const progress = taxAmount / targetAmount;
+  Widget _buildTaxIndicator(DashboardState state, bool isOnline) {
+    final taxAmount = isOnline ? state.taxAmount : 42500;
+    final monthlyOmset = isOnline ? state.monthlyOmset : 8500000;
+    final targetTax = (monthlyOmset * 0.005).round();
+    final progress = targetTax > 0
+        ? (taxAmount / targetTax).clamp(0.0, 1.0)
+        : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -240,7 +311,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Rp ${_formatNumber(taxAmount)} / Rp ${_formatNumber(targetAmount)}',
+            'Rp ${_formatNumber(taxAmount)} / Rp ${_formatNumber(targetTax)}',
             style: const TextStyle(fontSize: 12, color: AppColors.textGray),
           ),
         ],
@@ -248,7 +319,12 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildQuickStats(DashboardState state, bool isOnline) {
+    final trxCount = isOnline ? state.todayTransactionCount : 24;
+    final avgTrx = isOnline ? state.todayAverageTransaction : 354000;
+    final expenses = isOnline ? state.todayExpenses : 850000;
+    final margin = isOnline ? state.marginPercent : 28.8;
+
     return Column(
       children: [
         Row(
@@ -256,7 +332,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _buildStatCard(
                 'Transaksi',
-                '24',
+                '$trxCount',
                 Icons.receipt_long,
                 AppColors.info,
               ),
@@ -265,7 +341,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _buildStatCard(
                 'Rata-rata',
-                'Rp 354K',
+                _formatCompact(avgTrx),
                 Icons.trending_up,
                 AppColors.success,
               ),
@@ -278,7 +354,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _buildStatCard(
                 'Pengeluaran',
-                'Rp 850K',
+                _formatCompact(expenses),
                 Icons.account_balance_wallet,
                 AppColors.error,
               ),
@@ -287,7 +363,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _buildStatCard(
                 'Margin',
-                '28.8%',
+                '${margin.toStringAsFixed(1)}%',
                 Icons.pie_chart,
                 AppColors.primary,
               ),
@@ -429,7 +505,11 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTierBreakdown() {
+  Widget _buildTierBreakdown(DashboardState state, bool isOnline) {
+    final tierData = isOnline && state.tierBreakdown.isNotEmpty
+        ? state.tierBreakdown
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -442,11 +522,29 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        _buildTierRow('Orang Umum', 3200000, 12, 0.38, AppColors.info),
+        _buildTierRow(
+          'Orang Umum',
+          tierData?['UMUM']?.totalOmset ?? 3200000,
+          tierData?['UMUM']?.transactionCount ?? 12,
+          0.38,
+          AppColors.info,
+        ),
         const SizedBox(height: AppSpacing.sm),
-        _buildTierRow('Bengkel', 2800000, 8, 0.33, AppColors.warning),
+        _buildTierRow(
+          'Bengkel',
+          tierData?['BENGKEL']?.totalOmset ?? 2800000,
+          tierData?['BENGKEL']?.transactionCount ?? 8,
+          0.33,
+          AppColors.warning,
+        ),
         const SizedBox(height: AppSpacing.sm),
-        _buildTierRow('Grossir', 2500000, 4, 0.29, AppColors.success),
+        _buildTierRow(
+          'Grossir',
+          tierData?['GROSSIR']?.totalOmset ?? 2500000,
+          tierData?['GROSSIR']?.transactionCount ?? 4,
+          0.29,
+          AppColors.success,
+        ),
       ],
     );
   }
@@ -528,6 +626,13 @@ class DashboardScreen extends StatelessWidget {
       (Match m) => '${m[1]}.',
     );
   }
+
+  String _formatCompact(int number) {
+    if (number >= 1000000)
+      return 'Rp ${(number / 1000000).toStringAsFixed(1)}M';
+    if (number >= 1000) return 'Rp ${(number / 1000).toStringAsFixed(0)}K';
+    return 'Rp $number';
+  }
 }
 
 class _TrendChartPainter extends CustomPainter {
@@ -547,7 +652,6 @@ class _TrendChartPainter extends CustomPainter {
       ..color = AppColors.border
       ..strokeWidth = 1;
 
-    // Draw grid lines
     for (int i = 0; i <= 4; i++) {
       final y = (size.height / 4) * i;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
@@ -555,7 +659,6 @@ class _TrendChartPainter extends CustomPainter {
 
     final omsetPath = Path();
     final profitPath = Path();
-
     final omsetPoints = [0.5, 0.65, 0.55, 0.75, 0.6, 0.85, 0.7];
     final profitPoints = [0.25, 0.32, 0.28, 0.38, 0.3, 0.42, 0.35];
 
@@ -572,7 +675,6 @@ class _TrendChartPainter extends CustomPainter {
         profitPath.lineTo(x, profitY);
       }
 
-      // Draw dots
       canvas.drawCircle(Offset(x, omsetY), 4, Paint()..color = AppColors.info);
       canvas.drawCircle(
         Offset(x, profitY),

@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_spacing.dart';
-import '../../../config/routes/app_routes.dart';
 import '../../../config/constants/app_constants.dart';
+import '../../../config/constants/supabase_config.dart';
+import '../../../config/routes/app_routes.dart';
 import '../../../core/utils/validators.dart';
 import '../../widgets/common/custom_button.dart';
+import '../../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -32,23 +34,54 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-
     final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (email == 'admin@toko.com') {
-        context.go(AppRoutes.adminMain);
-      } else {
-        context.go(AppRoutes.kasirMain);
+    // Check if Supabase is configured
+    if (SupabaseConfig.isConfigured) {
+      // Real login with Supabase
+      final success = await ref
+          .read(authProvider.notifier)
+          .signIn(email, password);
+
+      if (success && mounted) {
+        final user = ref.read(authProvider).user;
+        if (user?.role == 'ADMIN') {
+          context.go(AppRoutes.adminMain);
+        } else {
+          context.go(AppRoutes.kasirMain);
+        }
+      }
+    } else {
+      // Demo mode - redirect based on email
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        if (email == 'admin@toko.com') {
+          context.go(AppRoutes.adminMain);
+        } else {
+          context.go(AppRoutes.kasirMain);
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+
+    // Show error snackbar if there's an error
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.error != null && previous?.error != next.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -69,11 +102,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: AppSpacing.md),
                   _buildRememberMe(),
                   const SizedBox(height: AppSpacing.lg),
-                  _buildLoginButton(),
+                  _buildLoginButton(authState.isLoading),
                   const SizedBox(height: AppSpacing.md),
                   _buildForgotPassword(),
                   const SizedBox(height: AppSpacing.xxl),
                   _buildDemoCredentials(),
+                  if (!SupabaseConfig.isConfigured) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _buildOfflineModeWarning(),
+                  ],
                 ],
               ),
             ),
@@ -219,11 +256,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLoginButton() {
+  Widget _buildLoginButton(bool isLoading) {
     return CustomButton(
       text: 'Masuk',
       onPressed: _handleLogin,
-      isLoading: _isLoading,
+      isLoading: isLoading,
     );
   }
 
@@ -287,6 +324,29 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildOfflineModeWarning() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 16),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Mode Offline - Supabase belum dikonfigurasi',
+              style: TextStyle(fontSize: 12, color: AppColors.warning),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

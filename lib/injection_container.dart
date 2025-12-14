@@ -1,6 +1,10 @@
 import 'package:get_it/get_it.dart';
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/constants/app_constants.dart';
+import 'config/constants/supabase_config.dart';
+import 'domain/repositories/repositories.dart';
+import 'data/repositories/repositories.dart';
 
 final getIt = GetIt.instance;
 
@@ -8,20 +12,12 @@ Future<void> setupServiceLocator() async {
   // Core
   _setupCore();
 
-  // Data Sources
-  _setupDataSources();
-
   // Repositories
   _setupRepositories();
-
-  // Use Cases
-  _setupUseCases();
-
-  // Providers (will be added later with Riverpod)
 }
 
 void _setupCore() {
-  // Dio HTTP Client
+  // Dio HTTP Client (for external APIs if needed)
   getIt.registerLazySingleton<Dio>(() {
     final dio = Dio(
       BaseOptions(
@@ -38,54 +34,41 @@ void _setupCore() {
         },
       ),
     );
-
-    // Add interceptors
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          // Add auth token if available
-          // final token = getIt<LocalStorage>().getToken();
-          // if (token != null) {
-          //   options.headers['Authorization'] = 'Bearer $token';
-          // }
-          return handler.next(options);
-        },
-        onResponse: (response, handler) {
-          return handler.next(response);
-        },
-        onError: (error, handler) {
-          return handler.next(error);
-        },
-      ),
-    );
-
     return dio;
   });
-}
 
-void _setupDataSources() {
-  // Remote Data Sources
-  // getIt.registerLazySingleton<AuthRemoteDataSource>(
-  //   () => AuthRemoteDataSourceImpl(getIt()),
-  // );
-
-  // Local Data Sources
-  // getIt.registerLazySingleton<AuthLocalDataSource>(
-  //   () => AuthLocalDataSourceImpl(),
-  // );
+  // Supabase Client
+  if (SupabaseConfig.isConfigured) {
+    getIt.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+  }
 }
 
 void _setupRepositories() {
-  // getIt.registerLazySingleton<AuthRepository>(
-  //   () => AuthRepositoryImpl(
-  //     remoteDataSource: getIt(),
-  //     localDataSource: getIt(),
-  //   ),
-  // );
-}
+  // Only register if Supabase is configured
+  if (!SupabaseConfig.isConfigured) return;
 
-void _setupUseCases() {
-  // getIt.registerLazySingleton<LoginUseCase>(
-  //   () => LoginUseCase(getIt()),
-  // );
+  // Auth Repository
+  getIt.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(getIt<SupabaseClient>()),
+  );
+
+  // Product Repository
+  getIt.registerLazySingleton<ProductRepository>(
+    () => ProductRepositoryImpl(getIt<SupabaseClient>()),
+  );
+
+  // Transaction Repository
+  getIt.registerLazySingleton<TransactionRepository>(
+    () => TransactionRepositoryImpl(getIt<SupabaseClient>()),
+  );
+
+  // Expense Repository
+  getIt.registerLazySingleton<ExpenseRepository>(
+    () => ExpenseRepositoryImpl(getIt<SupabaseClient>()),
+  );
+
+  // Tax Repository
+  getIt.registerLazySingleton<TaxRepository>(
+    () => TaxRepositoryImpl(getIt<SupabaseClient>()),
+  );
 }
