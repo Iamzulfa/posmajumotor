@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
 import '../../../../config/routes/app_routes.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/dashboard_provider.dart';
@@ -50,8 +51,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 children: [
                   _buildHeader(context, ref, syncStatus),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.getResponsivePaddingCustom(
+                        context,
+                        phoneValue: 12,
+                        tabletValue: 14,
+                        desktopValue: 16,
+                      ).left,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,8 +109,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetRef ref,
     SyncStatus syncStatus,
   ) {
+    final greetingFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 20,
+      tabletSize: 24,
+      desktopSize: 28,
+    );
+    final dateFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 14,
+      desktopSize: 16,
+    );
+    final headerPadding = ResponsiveUtils.getResponsivePadding(context);
+
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: headerPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -116,17 +136,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 children: [
                   Text(
                     _getGreeting(),
-                    style: const TextStyle(
-                      fontSize: 24,
+                    style: TextStyle(
+                      fontSize: greetingFontSize,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textDark,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(
+                    height: ResponsiveUtils.getPercentageHeight(context, 1),
+                  ),
                   Text(
                     _formatDate(DateTime.now()),
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: TextStyle(
+                      fontSize: dateFontSize,
                       color: AppColors.textGray,
                     ),
                   ),
@@ -143,7 +165,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 1)),
           SyncStatusWidget(
             status: syncStatus,
             lastSyncTime: syncStatus == SyncStatus.online
@@ -186,47 +208,84 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final hpp = state.todayHpp;
     final expenses = state.todayExpenses;
 
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 15,
+      desktopSize: 17,
+    );
+    final amountFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 28,
+      tabletSize: 32,
+      desktopSize: 36,
+    );
+    final cardPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 14,
+      desktopValue: 18,
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      width: double.infinity,
+      padding: cardPadding,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Laba Bersih Hari Ini',
-            style: TextStyle(fontSize: 14, color: Colors.white70),
+            style: TextStyle(fontSize: titleFontSize, color: Colors.white70),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 1)),
           Text(
             'Rp ${_formatNumber(profit)}',
-            style: const TextStyle(
-              fontSize: 32,
+            style: TextStyle(
+              fontSize: amountFontSize,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 2)),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            width: double.infinity,
+            padding: ResponsiveUtils.getResponsivePaddingCustom(
+              context,
+              phoneValue: 8,
+              tabletValue: 10,
+              desktopValue: 12,
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildProfitDetail('Penjualan', _formatCompact(omset)),
+                Expanded(
+                  child: _buildProfitDetail('Penjualan', _formatCompact(omset)),
+                ),
                 Container(width: 1, height: 30, color: Colors.white24),
-                _buildProfitDetail('HPP', _formatCompact(hpp)),
+                Expanded(child: _buildProfitDetail('HPP', _formatCompact(hpp))),
                 Container(width: 1, height: 30, color: Colors.white24),
-                _buildProfitDetail('Pengeluaran', _formatCompact(expenses)),
+                Expanded(
+                  child: _buildProfitDetail(
+                    'Pengeluaran',
+                    _formatCompact(expenses),
+                  ),
+                ),
               ],
             ),
           ),
@@ -263,11 +322,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? (taxAmount / targetTax).clamp(0.0, 1.0)
         : 0.0;
 
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 15,
+      desktopSize: 17,
+    );
+    final badgeFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 11,
+      tabletSize: 12,
+      desktopSize: 13,
+    );
+    final percentFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 15,
+      desktopSize: 16,
+    );
+    final containerPadding = ResponsiveUtils.getResponsivePadding(context);
+    final progressBarHeight = ResponsiveUtils.getResponsiveHeight(
+      context,
+      phoneHeight: 6,
+      tabletHeight: 8,
+      desktopHeight: 10,
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: containerPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -276,27 +363,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Tabungan Pajak Bulan Ini',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: titleFontSize,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textDark,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveUtils.getPercentageWidth(context, 2),
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
+                child: Text(
                   '0.5%',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: badgeFontSize,
                     color: AppColors.warning,
                     fontWeight: FontWeight.w600,
                   ),
@@ -304,7 +391,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 2)),
           Row(
             children: [
               Expanded(
@@ -316,25 +403,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppColors.warning,
                     ),
-                    minHeight: 8,
+                    minHeight: progressBarHeight,
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 3)),
               Text(
                 '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  fontSize: 14,
+                style: TextStyle(
+                  fontSize: percentFontSize,
                   fontWeight: FontWeight.w600,
                   color: AppColors.warning,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 1)),
           Text(
             'Rp ${_formatNumber(taxAmount)} / Rp ${_formatNumber(targetTax)}',
-            style: const TextStyle(fontSize: 12, color: AppColors.textGray),
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 10,
+                tabletSize: 12,
+                desktopSize: 12,
+              ),
+              color: AppColors.textGray,
+            ),
           ),
         ],
       ),
@@ -346,6 +441,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final avgTrx = state.todayAverageTransaction;
     final expenses = state.todayExpenses;
     final margin = state.marginPercent;
+
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 8,
+      tabletSpacing: 10,
+      desktopSpacing: 12,
+    );
 
     return Column(
       children: [
@@ -359,7 +461,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 AppColors.info,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: spacing),
             Expanded(
               child: _buildStatCard(
                 'Rata-rata',
@@ -370,7 +472,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: spacing),
         Row(
           children: [
             Expanded(
@@ -381,7 +483,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 AppColors.error,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: spacing),
             Expanded(
               child: _buildStatCard(
                 'Margin',
@@ -402,40 +504,73 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     IconData icon,
     Color color,
   ) {
+    final valueFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 16,
+      tabletSize: 18,
+      desktopSize: 20,
+    );
+    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
+    final cardPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 16,
+    );
+    final iconSize = ResponsiveUtils.getResponsiveIconSize(context);
+    final iconContainerPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 6,
+      tabletValue: 8,
+      desktopValue: 10,
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: cardPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: iconContainerPadding,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context) * 0.5,
+              ),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: iconSize),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 2)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: valueFontSize,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textDark,
                   ),
                 ),
+                SizedBox(
+                  height: ResponsiveUtils.getPercentageHeight(context, 0.5),
+                ),
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: labelFontSize,
                     color: AppColors.textGray,
                   ),
                 ),
@@ -451,23 +586,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // Watch 7 days summary provider
     final last7DaysAsync = ref.watch(last7DaysSummaryProvider);
 
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 15,
+      tabletSize: 17,
+      desktopSize: 19,
+    );
+    final chartHeight = ResponsiveUtils.getResponsiveHeight(
+      context,
+      phoneHeight: 150,
+      tabletHeight: 180,
+      desktopHeight: 220,
+    );
+    final containerPadding = ResponsiveUtils.getResponsivePadding(context);
+    final legendSpacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 12,
+      tabletSpacing: 16,
+      desktopSpacing: 20,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Trend 7 Hari Terakhir',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: titleFontSize,
             fontWeight: FontWeight.w600,
             color: AppColors.textDark,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 2)),
         Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: containerPadding,
           decoration: BoxDecoration(
             color: AppColors.background,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getResponsiveBorderRadius(context),
+            ),
             border: Border.all(color: AppColors.border),
           ),
           child: last7DaysAsync.when(
@@ -488,15 +645,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildLegendItem('Omset', AppColors.info),
-                      const SizedBox(width: AppSpacing.lg),
+                      SizedBox(width: legendSpacing * 2),
                       _buildLegendItem('Profit', AppColors.success),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
                   SizedBox(
-                    height: 180,
+                    height: ResponsiveUtils.getPercentageHeight(context, 2),
+                  ),
+                  SizedBox(
+                    height: chartHeight,
                     child: CustomPaint(
-                      size: const Size(double.infinity, 180),
+                      size: const Size(double.infinity, 0),
                       painter: _TrendChartPainter(
                         dailySummaries: dailySummaries,
                         maxOmset: maxOmset,
@@ -504,15 +663,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(
+                    height: ResponsiveUtils.getPercentageHeight(context, 1),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: dailySummaries
                         .map(
                           (summary) => Text(
                             _formatDateLabel(summary.date),
-                            style: const TextStyle(
-                              fontSize: 10,
+                            style: TextStyle(
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                context,
+                                phoneSize: 9,
+                                tabletSize: 10,
+                                desktopSize: 11,
+                              ),
                               color: AppColors.textGray,
                             ),
                           ),
@@ -522,12 +688,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ],
               );
             },
-            loading: () => const SizedBox(
-              height: 180,
-              child: Center(child: CircularProgressIndicator()),
+            loading: () => SizedBox(
+              height: chartHeight,
+              child: const Center(child: CircularProgressIndicator()),
             ),
             error: (error, _) => SizedBox(
-              height: 180,
+              height: chartHeight,
               child: Center(
                 child: Text(
                   'Error loading chart',
@@ -542,59 +708,123 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildLegendItem(String label, Color color) {
+    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 11,
+      tabletSize: 12,
+      desktopSize: 13,
+    );
+    final indicatorSize = ResponsiveUtils.getResponsiveHeight(
+      context,
+      phoneHeight: 10,
+      tabletHeight: 12,
+      desktopHeight: 14,
+    );
+
     return Row(
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: indicatorSize,
+          height: indicatorSize,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const SizedBox(width: AppSpacing.xs),
+        SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 1.5)),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textGray),
+          style: TextStyle(fontSize: labelFontSize, color: AppColors.textGray),
         ),
       ],
     );
   }
 
   Widget _buildTierBreakdownSection(DashboardState state) {
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 15,
+      tabletSize: 17,
+      desktopSize: 19,
+    );
+    final isPhone = ResponsiveUtils.isPhone(context);
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 8,
+      tabletSpacing: 12,
+      desktopSpacing: 16,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Breakdown per Tier',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textDark,
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
+        isPhone
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildPeriodButton('Hari', 'hari'),
-                  Container(width: 1, color: AppColors.border),
-                  _buildPeriodButton('Minggu', 'minggu'),
-                  Container(width: 1, color: AppColors.border),
-                  _buildPeriodButton('Bulan', 'bulan'),
+                  Text(
+                    'Breakdown per Tier',
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                  SizedBox(
+                    height: ResponsiveUtils.getPercentageHeight(context, 1.5),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context),
+                      ),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildPeriodButton('Hari', 'hari'),
+                        Container(width: 1, color: AppColors.border),
+                        _buildPeriodButton('Minggu', 'minggu'),
+                        Container(width: 1, color: AppColors.border),
+                        _buildPeriodButton('Bulan', 'bulan'),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Breakdown per Tier',
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context),
+                      ),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildPeriodButton('Hari', 'hari'),
+                        Container(width: 1, color: AppColors.border),
+                        _buildPeriodButton('Minggu', 'minggu'),
+                        Container(width: 1, color: AppColors.border),
+                        _buildPeriodButton('Bulan', 'bulan'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: spacing),
         _buildTierBreakdown(state),
       ],
     );
@@ -602,18 +832,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildPeriodButton(String label, String period) {
     final isSelected = _selectedPeriod == period;
+    final buttonFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 11,
+      tabletSize: 12,
+      desktopSize: 13,
+    );
+    final buttonPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 8,
+      tabletValue: 12,
+      desktopValue: 16,
+    );
+
     return InkWell(
       onTap: () => setState(() => _selectedPeriod = period),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
+        padding: buttonPadding,
         color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: buttonFontSize,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             color: isSelected ? AppColors.primary : AppColors.textGray,
           ),
@@ -639,6 +879,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ('GROSSIR', 'Grossir', AppColors.success),
     ];
 
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 8,
+      tabletSpacing: 10,
+      desktopSpacing: 12,
+    );
+
     for (int i = 0; i < tiers.length; i++) {
       final (tierKey, tierLabel, tierColor) = tiers[i];
       final tierSummary = tierData[tierKey];
@@ -660,7 +907,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
 
         if (i < tiers.length - 1) {
-          tierRows.add(const SizedBox(height: AppSpacing.sm));
+          tierRows.add(SizedBox(height: spacing));
         }
       }
     }
@@ -671,16 +918,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Column(children: tierRows)
         else
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: ResponsiveUtils.getResponsivePadding(context),
             decoration: BoxDecoration(
               color: AppColors.background,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               border: Border.all(color: AppColors.border),
             ),
             child: Center(
               child: Text(
                 'Belum ada transaksi ${_getPeriodLabel()}',
-                style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    phoneSize: 12,
+                    tabletSize: 14,
+                    desktopSize: 14,
+                  ),
+                  color: AppColors.textGray,
+                ),
               ),
             ),
           ),
@@ -699,11 +956,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final profit = omset - hpp;
     final marginPercent = omset > 0 ? (profit / omset) * 100 : 0.0;
 
+    final tierNameFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 14,
+      desktopSize: 15,
+    );
+    final tierCountFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 11,
+      tabletSize: 12,
+      desktopSize: 12,
+    );
+    final tierAmountFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 14,
+      desktopSize: 15,
+    );
+    final tierPercentFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 11,
+      tabletSize: 12,
+      desktopSize: 12,
+    );
+    final containerPadding = ResponsiveUtils.getResponsivePadding(context);
+    final indicatorSize = ResponsiveUtils.getResponsiveHeight(
+      context,
+      phoneHeight: 7,
+      tabletHeight: 8,
+      desktopHeight: 10,
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: containerPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -713,28 +1004,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             children: [
               Container(
-                width: 8,
-                height: 8,
+                width: indicatorSize,
+                height: indicatorSize,
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 2)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       tier,
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontSize: tierNameFontSize,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textDark,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(
+                      height: ResponsiveUtils.getPercentageHeight(context, 0.5),
+                    ),
                     Text(
                       '$transactions transaksi',
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: tierCountFontSize,
                         color: AppColors.textGray,
                       ),
                     ),
@@ -746,17 +1039,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 children: [
                   Text(
                     'Rp ${_formatNumber(omset)}',
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: TextStyle(
+                      fontSize: tierAmountFontSize,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textDark,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(
+                    height: ResponsiveUtils.getPercentageHeight(context, 0.5),
+                  ),
                   Text(
                     '${percentage.toStringAsFixed(1)}%',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: tierPercentFontSize,
                       fontWeight: FontWeight.w600,
                       color: color,
                     ),
@@ -765,7 +1060,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 2)),
           // Detail breakdown
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -790,17 +1085,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? '${(value as double).toStringAsFixed(1)}%'
         : 'Rp ${_formatNumber(value as int)}';
 
+    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 10,
+      tabletSize: 11,
+      desktopSize: 12,
+    );
+    final valueFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 11,
+      tabletSize: 12,
+      desktopSize: 13,
+    );
+
     return Column(
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: AppColors.textGray),
+          style: TextStyle(fontSize: labelFontSize, color: AppColors.textGray),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 0.5)),
         Text(
           displayValue,
-          style: const TextStyle(
-            fontSize: 12,
+          style: TextStyle(
+            fontSize: valueFontSize,
             fontWeight: FontWeight.w600,
             color: AppColors.textDark,
           ),

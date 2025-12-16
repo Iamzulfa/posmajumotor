@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/custom_button.dart';
@@ -82,17 +83,20 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
   }
 
   Widget _buildTabBar() {
+    final tabMargin = ResponsiveUtils.getResponsivePadding(context);
+    final tabBorderRadius = ResponsiveUtils.getResponsiveBorderRadius(context);
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      margin: EdgeInsets.symmetric(horizontal: tabMargin.left),
       decoration: BoxDecoration(
         color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(tabBorderRadius),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(tabBorderRadius),
         ),
         labelColor: Colors.white,
         unselectedLabelColor: AppColors.textGray,
@@ -221,38 +225,69 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     int profit,
     double margin,
   ) {
+    final cardPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 14,
+    );
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 16,
+      tabletSize: 18,
+      desktopSize: 20,
+    );
+    final marginFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 14,
+      desktopSize: 15,
+    );
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 8,
+      tabletSpacing: 10,
+      desktopSpacing: 12,
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: cardPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Laporan Laba Rugi',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
               color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: spacing),
           _buildReportRow('Total Omset', omset, isPositive: true),
           _buildReportRow('Total HPP', hpp, isNegative: true),
           _buildReportRow('Total Pengeluaran', expenses, isNegative: true),
-          const Divider(height: AppSpacing.lg),
+          Divider(height: spacing * 2),
           _buildReportRow('Profit Bersih', profit, isTotal: true),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: spacing),
           Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: EdgeInsets.all(
+              ResponsiveUtils.getPercentageWidth(context, 2),
+            ),
             decoration: BoxDecoration(
               color: profit >= 0
                   ? AppColors.success.withValues(alpha: 0.1)
                   : AppColors.error.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context) * 0.5,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -262,11 +297,13 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                   color: profit >= 0 ? AppColors.success : AppColors.error,
                   size: 16,
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                SizedBox(
+                  width: ResponsiveUtils.getPercentageWidth(context, 1.5),
+                ),
                 Text(
                   'Margin: ${margin.toStringAsFixed(1)}%',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: marginFontSize,
                     fontWeight: FontWeight.w600,
                     color: profit >= 0 ? AppColors.success : AppColors.error,
                   ),
@@ -293,15 +330,34 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
       amountColor = amount >= 0 ? AppColors.primary : AppColors.error;
     }
 
+    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: isTotal ? 14 : 12,
+      tabletSize: isTotal ? 16 : 14,
+      desktopSize: isTotal ? 17 : 15,
+    );
+    final amountFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: isTotal ? 16 : 12,
+      tabletSize: isTotal ? 18 : 14,
+      desktopSize: isTotal ? 20 : 15,
+    );
+    final rowPadding = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 4,
+      tabletSpacing: 6,
+      desktopSpacing: 8,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: rowPadding),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
             style: TextStyle(
-              fontSize: isTotal ? 16 : 14,
+              fontSize: labelFontSize,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
               color: isTotal ? AppColors.textDark : AppColors.textGray,
             ),
@@ -309,7 +365,7 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
           Text(
             '${isNegative ? '-' : ''}Rp ${_formatNumber(amount.abs())}',
             style: TextStyle(
-              fontSize: isTotal ? 18 : 14,
+              fontSize: amountFontSize,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
               color: amountColor,
             ),
@@ -784,13 +840,26 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     String? suffix,
     bool isTotal = false,
   }) {
+    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: isTotal ? 14 : 12,
+      tabletSize: isTotal ? 16 : 14,
+      desktopSize: isTotal ? 17 : 15,
+    );
+    final amountFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: isTotal ? 18 : 12,
+      tabletSize: isTotal ? 20 : 14,
+      desktopSize: isTotal ? 22 : 15,
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: isTotal ? 16 : 14,
+            fontSize: labelFontSize,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
             color: isTotal ? AppColors.textDark : AppColors.textGray,
           ),
@@ -798,7 +867,7 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
         Text(
           amount != null ? 'Rp ${_formatNumber(amount)}' : suffix ?? '',
           style: TextStyle(
-            fontSize: isTotal ? 20 : 14,
+            fontSize: amountFontSize,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
             color: isTotal ? AppColors.primary : AppColors.textDark,
           ),

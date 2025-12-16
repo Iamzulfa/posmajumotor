@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../data/models/models.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
@@ -172,20 +173,34 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   }
 
   Widget _buildProductSection(CartState cartState) {
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 14,
+      tabletSize: 16,
+      desktopSize: 18,
+    );
+    final sectionPadding = ResponsiveUtils.getResponsivePadding(context);
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 8,
+      tabletSpacing: 10,
+      desktopSpacing: 12,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: sectionPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Produk Tersedia',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: titleFontSize,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: spacing),
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -194,7 +209,9 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getResponsiveBorderRadius(context),
+                ),
                 borderSide: BorderSide.none,
               ),
             ),
@@ -211,6 +228,13 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     AsyncValue<List<ProductModel>> productsAsync,
     CartState cartState,
   ) {
+    final listPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 12,
+      tabletValue: 14,
+      desktopValue: 16,
+    );
+
     return productsAsync.when(
       data: (products) {
         // Filter by stock > 0 first
@@ -228,16 +252,24 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
         }
 
         if (filtered.isEmpty) {
-          return const Center(
+          return Center(
             child: Text(
               'Tidak ada produk',
-              style: TextStyle(color: AppColors.textGray),
+              style: TextStyle(
+                color: AppColors.textGray,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  phoneSize: 12,
+                  tabletSize: 14,
+                  desktopSize: 15,
+                ),
+              ),
             ),
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          padding: EdgeInsets.symmetric(horizontal: listPadding.left),
           itemCount: filtered.length,
           itemBuilder: (context, index) =>
               _buildProductItemFromModel(filtered[index], cartState.tier),
@@ -247,7 +279,15 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
       error: (error, _) => Center(
         child: Text(
           'Error: $error',
-          style: const TextStyle(color: AppColors.error),
+          style: TextStyle(
+            color: AppColors.error,
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 12,
+              tabletSize: 14,
+              desktopSize: 15,
+            ),
+          ),
         ),
       ),
     );
@@ -255,12 +295,40 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
 
   Widget _buildProductItemFromModel(ProductModel product, String tier) {
     final price = product.getPriceByTier(tier);
+    final productNameFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 14,
+      tabletSize: 16,
+      desktopSize: 17,
+    );
+    final productInfoFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
+    final itemPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 14,
+    );
+    final itemMargin = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 6,
+      tabletSpacing: 8,
+      desktopSpacing: 10,
+    );
+    final iconSize = ResponsiveUtils.getResponsiveIconSize(context);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: EdgeInsets.only(bottom: itemMargin),
+      padding: itemPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
@@ -271,17 +339,19 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               children: [
                 Text(
                   product.name,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: productNameFontSize,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textDark,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  height: ResponsiveUtils.getPercentageHeight(context, 0.5),
+                ),
                 Text(
                   'Stok: ${product.stock} | Rp ${_formatNumber(price)}',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: productInfoFontSize,
                     color: product.stock > 0
                         ? AppColors.textGray
                         : AppColors.error,
@@ -291,7 +361,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add_circle, size: 32),
+            icon: Icon(Icons.add_circle, size: iconSize),
             color: product.stock > 0 ? AppColors.primary : AppColors.textGray,
             onPressed: product.stock > 0
                 ? () => ref.read(cartProvider.notifier).addItem(product)
@@ -306,21 +376,39 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     CartState cartState,
     TransactionListState transactionState,
   ) {
+    final cartHeaderFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 14,
+      tabletSize: 16,
+      desktopSize: 18,
+    );
+    final cartHeaderPadding = ResponsiveUtils.getResponsivePadding(context);
+    final cartHeaderSpacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 6,
+      tabletSpacing: 8,
+      desktopSpacing: 10,
+    );
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Cart Header
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: cartHeaderPadding,
             child: Row(
               children: [
-                const Icon(Icons.shopping_cart, color: AppColors.primary),
-                const SizedBox(width: AppSpacing.sm),
+                Icon(
+                  Icons.shopping_cart,
+                  color: AppColors.primary,
+                  size: ResponsiveUtils.getResponsiveIconSize(context),
+                ),
+                SizedBox(width: cartHeaderSpacing),
                 Text(
                   'Keranjang (${cartState.items.length})',
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: cartHeaderFontSize,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textDark,
                   ),
@@ -356,19 +444,36 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
           const SizedBox(height: AppSpacing.md),
           // Notes
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            padding: ResponsiveUtils.getResponsivePaddingCustom(
+              context,
+              phoneValue: 12,
+              tabletValue: 14,
+              desktopValue: 16,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Catatan (Opsional)',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 12,
+                      tabletSize: 14,
+                      desktopSize: 15,
+                    ),
                     fontWeight: FontWeight.w500,
                     color: AppColors.textGray,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  height: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: 6,
+                    tabletSpacing: 8,
+                    desktopSpacing: 10,
+                  ),
+                ),
                 TextField(
                   controller: _notesController,
                   decoration: InputDecoration(
@@ -376,7 +481,9 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                     filled: true,
                     fillColor: AppColors.background,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context),
+                      ),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -386,10 +493,22 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 12,
+              tabletSpacing: 14,
+              desktopSpacing: 16,
+            ),
+          ),
           // Action Buttons
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            padding: ResponsiveUtils.getResponsivePaddingCustom(
+              context,
+              phoneValue: 12,
+              tabletValue: 14,
+              desktopValue: 16,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -402,7 +521,14 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: AppSpacing.md),
+                SizedBox(
+                  width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: 10,
+                    tabletSpacing: 12,
+                    desktopSpacing: 14,
+                  ),
+                ),
                 Expanded(
                   flex: 2,
                   child: CustomButton(
@@ -415,19 +541,65 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 12,
+              tabletSpacing: 14,
+              desktopSpacing: 16,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildCartItem(CartItem item) {
+    final productNameFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 14,
+      tabletSize: 16,
+      desktopSize: 17,
+    );
+    final priceInfoFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
+    final subtotalFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 14,
+      tabletSize: 16,
+      desktopSize: 17,
+    );
+    final itemPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 14,
+    );
+    final itemMargin = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 6,
+      tabletSpacing: 8,
+      desktopSpacing: 10,
+    );
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 8,
+      tabletSpacing: 10,
+      desktopSpacing: 12,
+    );
+
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: EdgeInsets.only(bottom: itemMargin),
+      padding: itemPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -439,8 +611,8 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               Expanded(
                 child: Text(
                   item.product.name,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: productNameFontSize,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textDark,
                   ),
@@ -458,9 +630,12 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
           ),
           Text(
             'Rp ${_formatNumber(item.unitPrice)} x ${item.quantity}',
-            style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+            style: TextStyle(
+              fontSize: priceInfoFontSize,
+              color: AppColors.textGray,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: spacing),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -475,9 +650,15 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                   GestureDetector(
                     onTap: () => _showQuantityDialog(item),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: ResponsiveUtils.getPercentageWidth(
+                          context,
+                          3,
+                        ),
+                        vertical: ResponsiveUtils.getPercentageHeight(
+                          context,
+                          1,
+                        ),
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.background,
@@ -486,8 +667,13 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                       ),
                       child: Text(
                         '${item.quantity}',
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            phoneSize: 14,
+                            tabletSize: 16,
+                            desktopSize: 17,
+                          ),
                           fontWeight: FontWeight.w600,
                           color: AppColors.textDark,
                         ),
@@ -506,8 +692,8 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               ),
               Text(
                 'Rp ${_formatNumber(item.subtotal)}',
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: subtotalFontSize,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textDark,
                 ),
@@ -546,20 +732,41 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   }
 
   Widget _buildSummary(CartState cartState) {
+    final summaryPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 14,
+    );
+    final summaryMargin = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 12,
+      tabletValue: 14,
+      desktopValue: 16,
+    );
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 6,
+      tabletSpacing: 8,
+      desktopSpacing: 10,
+    );
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: EdgeInsets.symmetric(horizontal: summaryMargin.left),
+      padding: summaryPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
           _buildSummaryRow('Subtotal', cartState.subtotal),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: spacing),
           _buildSummaryRow('Diskon', cartState.discountAmount),
-          const Divider(height: AppSpacing.md),
+          Divider(height: spacing * 2),
           _buildSummaryRow('Total', cartState.total, isTotal: true),
         ],
       ),
@@ -567,13 +774,26 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   }
 
   Widget _buildSummaryRow(String label, int amount, {bool isTotal = false}) {
+    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: isTotal ? 14 : 12,
+      tabletSize: isTotal ? 16 : 14,
+      desktopSize: isTotal ? 17 : 15,
+    );
+    final amountFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: isTotal ? 16 : 12,
+      tabletSize: isTotal ? 18 : 14,
+      desktopSize: isTotal ? 20 : 15,
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: isTotal ? 16 : 14,
+            fontSize: labelFontSize,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
             color: isTotal ? AppColors.textDark : AppColors.textGray,
           ),
@@ -581,7 +801,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
         Text(
           'Rp ${_formatNumber(amount)}',
           style: TextStyle(
-            fontSize: isTotal ? 18 : 14,
+            fontSize: amountFontSize,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
             color: isTotal ? AppColors.primary : AppColors.textDark,
           ),
@@ -626,11 +846,32 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     final quantityController = TextEditingController(
       text: item.quantity.toString(),
     );
+    final dialogTitleFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 14,
+      tabletSize: 16,
+      desktopSize: 17,
+    );
+    final dialogContentFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
+    final dialogSpacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 10,
+      tabletSpacing: 12,
+      desktopSpacing: 14,
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Ubah Jumlah - ${item.product.name}'),
+        title: Text(
+          'Ubah Jumlah - ${item.product.name}',
+          style: TextStyle(fontSize: dialogTitleFontSize),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -640,15 +881,20 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               decoration: InputDecoration(
                 hintText: 'Masukkan jumlah',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getResponsiveBorderRadius(context),
+                  ),
                 ),
               ),
               autofocus: true,
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: dialogSpacing),
             Text(
               'Stok tersedia: ${item.product.stock}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textGray),
+              style: TextStyle(
+                fontSize: dialogContentFontSize,
+                color: AppColors.textGray,
+              ),
             ),
           ],
         ),

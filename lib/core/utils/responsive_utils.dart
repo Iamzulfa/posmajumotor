@@ -144,6 +144,13 @@ class ResponsiveUtils {
     required double desktopSize,
   }) {
     final deviceType = getDeviceType(context);
+    final width = getDeviceWidth(context);
+
+    // For very small phones (< 360px), scale up slightly
+    if (width < 360 && deviceType == DeviceType.phone) {
+      return phoneSize * 1.1;
+    }
+
     switch (deviceType) {
       case DeviceType.phone:
         return phoneSize;

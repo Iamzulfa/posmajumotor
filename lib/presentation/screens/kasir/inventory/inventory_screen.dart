@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
-import '../../../../config/theme/app_spacing.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../data/models/models.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
@@ -80,6 +80,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   Widget _buildSearchAndFilter(
     AsyncValue<List<CategoryModel>> categoriesAsync,
   ) {
+    final filterPadding = ResponsiveUtils.getResponsivePadding(context);
+    final filterSpacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 6,
+      tabletSpacing: 8,
+      desktopSpacing: 10,
+    );
+    final textFieldPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 14,
+    );
+
     return categoriesAsync.when(
       data: (categories) {
         final categoryNames = ['Semua', ...categories.map((c) => c.name)];
@@ -93,7 +107,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             : 'Semua';
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          padding: filterPadding,
           child: Row(
             children: [
               Expanded(
@@ -104,12 +118,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: AppColors.background,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
+                    contentPadding: textFieldPadding,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context),
+                      ),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -118,12 +131,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: filterSpacing),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveUtils.getPercentageWidth(context, 3),
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.background,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getResponsiveBorderRadius(context),
+                  ),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -150,42 +167,64 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ),
         );
       },
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: LinearProgressIndicator(),
+      loading: () => Padding(
+        padding: filterPadding,
+        child: const LinearProgressIndicator(),
       ),
       error: (error, _) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        padding: filterPadding,
         child: Text(
           'Error: $error',
-          style: const TextStyle(color: AppColors.error),
+          style: TextStyle(
+            color: AppColors.error,
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 12,
+              tabletSize: 14,
+              desktopSize: 15,
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildResultCount(AsyncValue<List<ProductModel>> productsAsync) {
+    final resultPadding = ResponsiveUtils.getResponsivePadding(context);
+    final resultFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 14,
+      desktopSize: 15,
+    );
+
     return productsAsync.when(
       data: (products) {
         final filtered = _filterProducts(products);
         return Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: resultPadding,
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Hasil: ${filtered.length} produk',
-              style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+              style: TextStyle(
+                fontSize: resultFontSize,
+                color: AppColors.textGray,
+              ),
             ),
           ),
         );
       },
-      loading: () => const Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
+      loading: () => Padding(
+        padding: resultPadding,
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             'Loading...',
-            style: TextStyle(color: AppColors.textGray),
+            style: TextStyle(
+              color: AppColors.textGray,
+              fontSize: resultFontSize,
+            ),
           ),
         ),
       ),
@@ -216,15 +255,37 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   Widget _buildProductList(AsyncValue<List<ProductModel>> productsAsync) {
+    final listPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 12,
+      tabletValue: 14,
+      desktopValue: 16,
+    );
+    final emptyStateFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 14,
+      desktopSize: 15,
+    );
+    final errorSpacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 12,
+      tabletSpacing: 14,
+      desktopSpacing: 16,
+    );
+
     return productsAsync.when(
       data: (products) {
         final filtered = _filterProducts(products);
 
         if (filtered.isEmpty) {
-          return const Center(
+          return Center(
             child: Text(
               'Tidak ada produk',
-              style: TextStyle(color: AppColors.textGray),
+              style: TextStyle(
+                color: AppColors.textGray,
+                fontSize: emptyStateFontSize,
+              ),
             ),
           );
         }
@@ -234,9 +295,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ref.invalidate(enrichedProductsProvider);
           },
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            padding: EdgeInsets.symmetric(horizontal: listPadding.left),
             itemCount: filtered.length,
-            cacheExtent: 500, // Cache 500px above/below viewport
+            cacheExtent: 500,
             addAutomaticKeepAlives: true,
             addRepaintBoundaries: true,
             itemBuilder: (context, index) {
@@ -254,10 +315,30 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-            const SizedBox(height: AppSpacing.md),
-            Text('$error', style: const TextStyle(color: AppColors.error)),
-            const SizedBox(height: AppSpacing.md),
+            Icon(
+              Icons.error_outline,
+              size: ResponsiveUtils.getResponsiveHeight(
+                context,
+                phoneHeight: 40,
+                tabletHeight: 48,
+                desktopHeight: 56,
+              ),
+              color: AppColors.error,
+            ),
+            SizedBox(height: errorSpacing),
+            Text(
+              '$error',
+              style: TextStyle(
+                color: AppColors.error,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  phoneSize: 12,
+                  tabletSize: 14,
+                  desktopSize: 15,
+                ),
+              ),
+            ),
+            SizedBox(height: errorSpacing),
             ElevatedButton(
               onPressed: () => ref.invalidate(productsStreamProvider),
               child: const Text('Coba Lagi'),
@@ -281,12 +362,57 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ? AppColors.warning
         : AppColors.error;
 
+    final productNameFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 15,
+      tabletSize: 16,
+      desktopSize: 17,
+    );
+    final categoryFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
+    final infoFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 13,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
+    final cardPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 10,
+      tabletValue: 12,
+      desktopValue: 14,
+    );
+    final cardMargin = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 10,
+      tabletSpacing: 12,
+      desktopSpacing: 14,
+    );
+    final spacing = ResponsiveUtils.getResponsiveSpacing(
+      context,
+      phoneSpacing: 6,
+      tabletSpacing: 8,
+      desktopSpacing: 10,
+    );
+    final buttonPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 8,
+      tabletValue: 10,
+      desktopValue: 12,
+    );
+
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: EdgeInsets.only(bottom: cardMargin),
+      padding: cardPadding,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -294,43 +420,49 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         children: [
           Text(
             product.name,
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: productNameFontSize,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: spacing),
           Text(
             '${product.category?.name ?? '-'} | ${product.brand?.name ?? '-'}',
-            style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+            style: TextStyle(
+              fontSize: categoryFontSize,
+              color: AppColors.textGray,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: spacing),
           Row(
             children: [
               Icon(Icons.check_circle, size: 16, color: stockColor),
-              const SizedBox(width: AppSpacing.xs),
+              SizedBox(width: spacing * 0.5),
               Text(
                 'Stok: ${product.stock}',
-                style: const TextStyle(fontSize: 14, color: AppColors.textDark),
+                style: TextStyle(
+                  fontSize: infoFontSize,
+                  color: AppColors.textDark,
+                ),
               ),
-              const SizedBox(width: AppSpacing.lg),
+              SizedBox(width: spacing * 2),
               Text(
                 'Margin: ${margin.toStringAsFixed(0)}%',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: infoFontSize,
                   fontWeight: FontWeight.w600,
                   color: marginColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: spacing),
           Text(
             'HPP: Rp ${_formatNumber(product.hpp)}  |  Jual: Rp ${_formatNumber(product.hargaUmum)}',
-            style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+            style: TextStyle(fontSize: infoFontSize, color: AppColors.textGray),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: spacing),
           Row(
             children: [
               TextButton.icon(
@@ -339,10 +471,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 label: const Text('Edit'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.textGray,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
+                  padding: buttonPadding,
                 ),
               ),
               const Spacer(),
