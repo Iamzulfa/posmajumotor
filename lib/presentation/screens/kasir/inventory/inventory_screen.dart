@@ -7,6 +7,7 @@ import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/product_provider.dart';
+import '../../../providers/inventory_provider.dart';
 import 'product_form_modal.dart';
 import 'delete_product_dialog.dart';
 
@@ -28,54 +29,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     super.dispose();
   }
 
-  /// Combine products with categories and brands data
-  List<ProductModel> _enrichProductsWithRelations(
-    List<ProductModel> products,
-    List<CategoryModel> categories,
-    List<BrandModel> brands,
-  ) {
-    final categoryMap = {for (var c in categories) c.id: c};
-    final brandMap = {for (var b in brands) b.id: b};
-
-    return products.map((product) {
-      return product.copyWith(
-        category: product.categoryId != null
-            ? categoryMap[product.categoryId]
-            : null,
-        brand: product.brandId != null ? brandMap[product.brandId] : null,
-      );
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Watch real-time streams
-    final productsAsync = ref.watch(productsStreamProvider);
-    final categoriesAsync = ref.watch(categoriesStreamProvider);
-    final brandsAsync = ref.watch(brandsStreamProvider);
+    // Watch combined enriched products (no nested AsyncValue)
+    final enrichedProductsAsync = ref.watch(enrichedProductsProvider);
 
-    // Combine all async data
-    final enrichedProductsAsync = productsAsync.when(
-      data: (products) {
-        return categoriesAsync.when(
-          data: (categories) {
-            return brandsAsync.when(
-              data: (brands) {
-                return AsyncValue.data(
-                  _enrichProductsWithRelations(products, categories, brands),
-                );
-              },
-              loading: () => const AsyncValue<List<ProductModel>>.loading(),
-              error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
-            );
-          },
-          loading: () => const AsyncValue<List<ProductModel>>.loading(),
-          error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
-        );
-      },
-      loading: () => const AsyncValue<List<ProductModel>>.loading(),
-      error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
-    );
+    // Watch categories for filter dropdown
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -271,12 +231,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
         return RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(productsStreamProvider);
+            ref.invalidate(enrichedProductsProvider);
           },
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             itemCount: filtered.length,
-            itemBuilder: (context, index) => _buildProductCard(filtered[index]),
+            cacheExtent: 500, // Cache 500px above/below viewport
+            addAutomaticKeepAlives: true,
+            addRepaintBoundaries: true,
+            itemBuilder: (context, index) {
+              final product = filtered[index];
+              return RepaintBoundary(
+                key: ValueKey(product.id),
+                child: _buildProductCard(product),
+              );
+            },
           ),
         );
       },

@@ -48,6 +48,9 @@ abstract class TransactionRepository {
     DateTime? endDate,
   });
 
+  /// Get daily summary for last 7 days (for trend chart)
+  Future<List<DailySummary>> getLast7DaysSummary();
+
   // ============================================
   // STREAM METHODS (Real-time updates)
   // ============================================
@@ -98,11 +101,26 @@ class TierSummary {
   final String tier;
   final int transactionCount;
   final int totalOmset;
+  final int totalHpp;
   final int totalProfit;
 
   TierSummary({
     required this.tier,
     required this.transactionCount,
+    required this.totalOmset,
+    required this.totalHpp,
+    required this.totalProfit,
+  });
+}
+
+/// Daily summary for trend chart
+class DailySummary {
+  final DateTime date;
+  final int totalOmset;
+  final int totalProfit;
+
+  DailySummary({
+    required this.date,
     required this.totalOmset,
     required this.totalProfit,
   });

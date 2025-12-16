@@ -8,14 +8,25 @@ import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/dashboard_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../../domain/repositories/transaction_repository.dart'
+    show DailySummary;
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch real-time stream
-    final dashboardAsync = ref.watch(dashboardStreamProvider);
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  String _selectedPeriod = 'hari'; // 'hari', 'minggu', 'bulan'
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch real-time stream with selected period
+    final dashboardAsync = ref.watch(
+      dashboardStreamProvider(DashboardPeriod.fromString(_selectedPeriod)),
+    );
 
     final syncStatus = dashboardAsync.when(
       data: (_) => SyncStatus.online,
@@ -30,6 +41,7 @@ class DashboardScreen extends ConsumerWidget {
           data: (dashboardState) => RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(dashboardStreamProvider);
+              ref.invalidate(last7DaysSummaryProvider);
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -52,7 +64,7 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.lg),
                         _buildTrendChart(),
                         const SizedBox(height: AppSpacing.lg),
-                        _buildTierBreakdown(dashboardState),
+                        _buildTierBreakdownSection(dashboardState),
                         const SizedBox(height: AppSpacing.lg),
                       ],
                     ),
@@ -436,6 +448,9 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildTrendChart() {
+    // Watch 7 days summary provider
+    final last7DaysAsync = ref.watch(last7DaysSummaryProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -455,40 +470,71 @@ class DashboardScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(color: AppColors.border),
           ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          child: last7DaysAsync.when(
+            data: (dailySummaries) {
+              // Calculate max values for scaling
+              int maxOmset = 0;
+              int maxProfit = 0;
+              for (final summary in dailySummaries) {
+                if (summary.totalOmset > maxOmset)
+                  maxOmset = summary.totalOmset;
+                if (summary.totalProfit > maxProfit)
+                  maxProfit = summary.totalProfit;
+              }
+
+              return Column(
                 children: [
-                  _buildLegendItem('Omset', AppColors.info),
-                  const SizedBox(width: AppSpacing.lg),
-                  _buildLegendItem('Profit', AppColors.success),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildLegendItem('Omset', AppColors.info),
+                      const SizedBox(width: AppSpacing.lg),
+                      _buildLegendItem('Profit', AppColors.success),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    height: 180,
+                    child: CustomPaint(
+                      size: const Size(double.infinity, 180),
+                      painter: _TrendChartPainter(
+                        dailySummaries: dailySummaries,
+                        maxOmset: maxOmset,
+                        maxProfit: maxProfit,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: dailySummaries
+                        .map(
+                          (summary) => Text(
+                            _formatDateLabel(summary.date),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textGray,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                height: 180,
-                child: CustomPaint(
-                  size: const Size(double.infinity, 180),
-                  painter: _TrendChartPainter(),
+              );
+            },
+            loading: () => const SizedBox(
+              height: 180,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, _) => SizedBox(
+              height: 180,
+              child: Center(
+                child: Text(
+                  'Error loading chart',
+                  style: TextStyle(color: AppColors.error),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-                    .map(
-                      (d) => Text(
-                        d,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textGray,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
+            ),
           ),
         ),
       ],
@@ -515,57 +561,144 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTierBreakdown(DashboardState state) {
-    final tierData = state.tierBreakdown.isNotEmpty
-        ? state.tierBreakdown
-        : null;
-
+  Widget _buildTierBreakdownSection(DashboardState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Breakdown per Tier',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Breakdown per Tier',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textDark,
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  _buildPeriodButton('Hari', 'hari'),
+                  Container(width: 1, color: AppColors.border),
+                  _buildPeriodButton('Minggu', 'minggu'),
+                  Container(width: 1, color: AppColors.border),
+                  _buildPeriodButton('Bulan', 'bulan'),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.md),
-        _buildTierRow(
-          'Orang Umum',
-          tierData?['UMUM']?.totalOmset ?? 3200000,
-          tierData?['UMUM']?.transactionCount ?? 12,
-          0.38,
-          AppColors.info,
+        _buildTierBreakdown(state),
+      ],
+    );
+  }
+
+  Widget _buildPeriodButton(String label, String period) {
+    final isSelected = _selectedPeriod == period;
+    return InkWell(
+      onTap: () => setState(() => _selectedPeriod = period),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
-        const SizedBox(height: AppSpacing.sm),
-        _buildTierRow(
-          'Bengkel',
-          tierData?['BENGKEL']?.totalOmset ?? 2800000,
-          tierData?['BENGKEL']?.transactionCount ?? 8,
-          0.33,
-          AppColors.warning,
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? AppColors.primary : AppColors.textGray,
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        _buildTierRow(
-          'Grossir',
-          tierData?['GROSSIR']?.totalOmset ?? 2500000,
-          tierData?['GROSSIR']?.transactionCount ?? 4,
-          0.29,
-          AppColors.success,
-        ),
+      ),
+    );
+  }
+
+  Widget _buildTierBreakdown(DashboardState state) {
+    final tierData = state.tierBreakdown;
+
+    // Calculate total omset across all tiers
+    int totalOmset = 0;
+    for (final tier in tierData.values) {
+      totalOmset += tier.totalOmset;
+    }
+
+    // Build tier rows only for tiers with transactions
+    final tierRows = <Widget>[];
+    final tiers = [
+      ('UMUM', 'Orang Umum', AppColors.info),
+      ('BENGKEL', 'Bengkel', AppColors.warning),
+      ('GROSSIR', 'Grossir', AppColors.success),
+    ];
+
+    for (int i = 0; i < tiers.length; i++) {
+      final (tierKey, tierLabel, tierColor) = tiers[i];
+      final tierSummary = tierData[tierKey];
+
+      if (tierSummary != null && tierSummary.transactionCount > 0) {
+        final percentage = totalOmset > 0
+            ? (tierSummary.totalOmset / totalOmset) * 100
+            : 0.0;
+
+        tierRows.add(
+          _buildTierRow(
+            tierLabel,
+            tierSummary.totalOmset,
+            tierSummary.totalHpp,
+            tierSummary.transactionCount,
+            percentage,
+            tierColor,
+          ),
+        );
+
+        if (i < tiers.length - 1) {
+          tierRows.add(const SizedBox(height: AppSpacing.sm));
+        }
+      }
+    }
+
+    return Column(
+      children: [
+        if (tierRows.isNotEmpty)
+          Column(children: tierRows)
+        else
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Center(
+              child: Text(
+                'Belum ada transaksi ${_getPeriodLabel()}',
+                style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+              ),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildTierRow(
     String tier,
-    int amount,
+    int omset,
+    int hpp,
     int transactions,
     double percentage,
     Color color,
   ) {
+    final profit = omset - hpp;
+    final marginPercent = omset > 0 ? (profit / omset) * 100 : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -574,7 +707,9 @@ class DashboardScreen extends ConsumerWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
             children: [
               Container(
@@ -584,50 +719,105 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(
-                  tier,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textDark,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tier,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$transactions transaksi',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textGray,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                'Rp ${_formatNumber(amount)}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Rp ${_formatNumber(omset)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${percentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
+          // Detail breakdown
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(width: 16),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: percentage,
-                    backgroundColor: AppColors.secondary,
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
-                    minHeight: 6,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Text(
-                '$transactions trx',
-                style: const TextStyle(fontSize: 12, color: AppColors.textGray),
-              ),
+              _buildTierDetail('Omset', omset),
+              _buildTierDetail('HPP', hpp),
+              _buildTierDetail('Profit', profit),
+              _buildTierDetail('Margin', marginPercent, isPercent: true),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildTierDetail(
+    String label,
+    dynamic value, {
+    bool isPercent = false,
+  }) {
+    final displayValue = isPercent
+        ? '${(value as double).toStringAsFixed(1)}%'
+        : 'Rp ${_formatNumber(value as int)}';
+
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: AppColors.textGray),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          displayValue,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getPeriodLabel() {
+    switch (_selectedPeriod) {
+      case 'minggu':
+        return 'minggu ini';
+      case 'bulan':
+        return 'bulan ini';
+      default:
+        return 'hari ini';
+    }
   }
 
   String _formatNumber(int number) {
@@ -638,14 +828,44 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   String _formatCompact(int number) {
-    if (number >= 1000000)
+    if (number >= 1000000) {
       return 'Rp ${(number / 1000000).toStringAsFixed(1)}M';
-    if (number >= 1000) return 'Rp ${(number / 1000).toStringAsFixed(0)}K';
+    }
+    if (number >= 1000) {
+      return 'Rp ${(number / 1000).toStringAsFixed(0)}K';
+    }
     return 'Rp $number';
+  }
+
+  String _formatDateLabel(DateTime date) {
+    // Show day name for today, yesterday, etc. Otherwise show date
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    if (dateOnly == today) {
+      return 'Hari ini';
+    } else if (dateOnly == today.subtract(const Duration(days: 1))) {
+      return 'Kemarin';
+    } else {
+      // Show day abbreviation + date
+      final dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+      return '${dayNames[date.weekday - 1]}\n${date.day}';
+    }
   }
 }
 
 class _TrendChartPainter extends CustomPainter {
+  final List<DailySummary> dailySummaries;
+  final int maxOmset;
+  final int maxProfit;
+
+  _TrendChartPainter({
+    required this.dailySummaries,
+    required this.maxOmset,
+    required this.maxProfit,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final omsetPaint = Paint()
@@ -662,20 +882,40 @@ class _TrendChartPainter extends CustomPainter {
       ..color = AppColors.border
       ..strokeWidth = 1;
 
+    // Draw grid
     for (int i = 0; i <= 4; i++) {
       final y = (size.height / 4) * i;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
+    if (dailySummaries.isEmpty) {
+      return;
+    }
+
     final omsetPath = Path();
     final profitPath = Path();
-    final omsetPoints = [0.5, 0.65, 0.55, 0.75, 0.6, 0.85, 0.7];
-    final profitPoints = [0.25, 0.32, 0.28, 0.38, 0.3, 0.42, 0.35];
 
-    for (int i = 0; i < omsetPoints.length; i++) {
-      final x = (size.width / (omsetPoints.length - 1)) * i;
-      final omsetY = size.height - (size.height * omsetPoints[i]);
-      final profitY = size.height - (size.height * profitPoints[i]);
+    // Use separate scaling for omset and profit to show both clearly
+    // Omset uses 60% of height, profit uses 40% of height
+    final omsetHeight = size.height * 0.6;
+    final profitHeight = size.height * 0.4;
+
+    for (int i = 0; i < dailySummaries.length; i++) {
+      final summary = dailySummaries[i];
+      final x = (size.width / (dailySummaries.length - 1)) * i;
+
+      // Calculate Y positions with separate scaling
+      final omsetNormalized = maxOmset > 0
+          ? (summary.totalOmset / maxOmset)
+          : 0.0;
+      final profitNormalized = maxProfit > 0
+          ? (summary.totalProfit / maxProfit)
+          : 0.0;
+
+      // Omset line in upper portion
+      final omsetY = size.height - (omsetHeight * omsetNormalized);
+      // Profit line in lower portion (offset down)
+      final profitY = size.height - (profitHeight * profitNormalized);
 
       if (i == 0) {
         omsetPath.moveTo(x, omsetY);
@@ -685,6 +925,7 @@ class _TrendChartPainter extends CustomPainter {
         profitPath.lineTo(x, profitY);
       }
 
+      // Draw data points
       canvas.drawCircle(Offset(x, omsetY), 4, Paint()..color = AppColors.info);
       canvas.drawCircle(
         Offset(x, profitY),
@@ -698,5 +939,5 @@ class _TrendChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

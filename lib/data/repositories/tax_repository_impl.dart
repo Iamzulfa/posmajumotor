@@ -241,6 +241,93 @@ class TaxRepositoryImpl implements TaxRepository {
     }
   }
 
+  @override
+  Future<ProfitLossReport> getDailyProfitLossReport({
+    required DateTime date,
+  }) async {
+    try {
+      // Get start and end of day
+      final startDate = DateTime(date.year, date.month, date.day);
+      final endDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+      // Get transactions for the day
+      final transactionResponse = await _client
+          .from('transactions')
+          .select('tier, total, total_hpp, profit')
+          .eq('payment_status', 'COMPLETED')
+          .gte('created_at', startDate.toIso8601String())
+          .lte('created_at', endDate.toIso8601String());
+
+      // Get expenses for the day
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final expenseResponse = await _client
+          .from('expenses')
+          .select('amount')
+          .eq('expense_date', dateStr);
+
+      // Calculate totals
+      int totalOmset = 0;
+      int totalHpp = 0;
+
+      final Map<String, TierReportDetail> tierBreakdown = {};
+
+      // Initialize tier breakdown
+      for (final tier in ['UMUM', 'BENGKEL', 'GROSSIR']) {
+        tierBreakdown[tier] = TierReportDetail(
+          tier: tier,
+          transactionCount: 0,
+          omset: 0,
+          hpp: 0,
+          profit: 0,
+        );
+      }
+
+      // Process transactions
+      for (final row in transactionResponse) {
+        final tier = row['tier'] as String;
+        final omset = (row['total'] as num).toInt();
+        final hpp = (row['total_hpp'] as num).toInt();
+        final profit = (row['profit'] as num).toInt();
+
+        totalOmset += omset;
+        totalHpp += hpp;
+
+        final existing = tierBreakdown[tier]!;
+        tierBreakdown[tier] = TierReportDetail(
+          tier: tier,
+          transactionCount: existing.transactionCount + 1,
+          omset: existing.omset + omset,
+          hpp: existing.hpp + hpp,
+          profit: existing.profit + profit,
+        );
+      }
+
+      // Calculate expenses
+      int totalExpenses = 0;
+      for (final row in expenseResponse) {
+        totalExpenses += (row['amount'] as num).toInt();
+      }
+
+      final grossProfit = totalOmset - totalHpp;
+      final netProfit = grossProfit - totalExpenses;
+
+      return ProfitLossReport(
+        month: date.month,
+        year: date.year,
+        totalOmset: totalOmset,
+        totalHpp: totalHpp,
+        totalExpenses: totalExpenses,
+        grossProfit: grossProfit,
+        netProfit: netProfit,
+        tierBreakdown: tierBreakdown,
+      );
+    } catch (e) {
+      AppLogger.error('Error getting daily profit/loss report', e);
+      rethrow;
+    }
+  }
+
   // ============================================
   // STREAM METHODS (Real-time updates)
   // ============================================

@@ -132,10 +132,20 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
             const SizedBox(height: AppSpacing.md),
             _buildTierBreakdown(taxState, profitLossAsync),
             const SizedBox(height: AppSpacing.lg),
-            CustomButton(
-              text: 'Export PDF',
-              icon: Icons.picture_as_pdf,
-              onPressed: () => _exportPDF(profitLossAsync),
+            Column(
+              children: [
+                CustomButton(
+                  text: 'Laporan Harian',
+                  icon: Icons.calendar_today,
+                  onPressed: () => _exportDailyPDF(profitLossAsync),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                CustomButton(
+                  text: 'Laporan Bulanan',
+                  icon: Icons.picture_as_pdf,
+                  onPressed: () => _exportMonthlyPDF(profitLossAsync),
+                ),
+              ],
             ),
           ],
         ),
@@ -878,11 +888,65 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     );
   }
 
-  Future<void> _exportPDF(AsyncValue profitLossAsync) async {
+  Future<void> _exportDailyPDF(AsyncValue profitLossAsync) async {
     try {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Generating PDF...')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating daily report...')),
+      );
+
+      await profitLossAsync.when(
+        data: (report) async {
+          final profitReport = report as ProfitLossReport;
+          await PdfGenerator.generateProfitLossReport(
+            report: profitReport,
+            date: DateTime.now(),
+            businessName: 'PosFELIX - Toko Suku Cadang Motor',
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Laporan harian berhasil dibuat'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+        },
+        loading: () async {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Menunggu data...')));
+          }
+        },
+        error: (error, _) async {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $error'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportMonthlyPDF(AsyncValue profitLossAsync) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating monthly report...')),
+      );
 
       await profitLossAsync.when(
         data: (report) async {
@@ -895,7 +959,7 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('PDF berhasil dibuat'),
+                content: Text('Laporan bulanan berhasil dibuat'),
                 backgroundColor: AppColors.success,
               ),
             );

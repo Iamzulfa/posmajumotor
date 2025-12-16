@@ -121,23 +121,28 @@ class CartNotifier extends StateNotifier<CartState> {
     );
 
     if (existingIndex >= 0) {
-      // Increase quantity
+      // Increase quantity (but don't exceed stock)
       final existing = state.items[existingIndex];
-      final updatedItems = [...state.items];
-      updatedItems[existingIndex] = existing.copyWith(
-        quantity: existing.quantity + 1,
-      );
-      state = state.copyWith(items: updatedItems);
+      final newQuantity = existing.quantity + 1;
+      final maxQuantity = existing.product.stock;
+
+      if (newQuantity <= maxQuantity) {
+        final updatedItems = [...state.items];
+        updatedItems[existingIndex] = existing.copyWith(quantity: newQuantity);
+        state = state.copyWith(items: updatedItems);
+      }
     } else {
-      // Add new item
-      final price = product.getPriceByTier(state.tier);
-      final newItem = CartItem(
-        product: product,
-        quantity: 1,
-        unitPrice: price,
-        unitHpp: product.hpp,
-      );
-      state = state.copyWith(items: [...state.items, newItem]);
+      // Add new item (only if stock available)
+      if (product.stock > 0) {
+        final price = product.getPriceByTier(state.tier);
+        final newItem = CartItem(
+          product: product,
+          quantity: 1,
+          unitPrice: price,
+          unitHpp: product.hpp,
+        );
+        state = state.copyWith(items: [...state.items, newItem]);
+      }
     }
   }
 
@@ -156,7 +161,10 @@ class CartNotifier extends StateNotifier<CartState> {
 
     final updatedItems = state.items.map((item) {
       if (item.product.id == productId) {
-        return item.copyWith(quantity: quantity);
+        // Validate quantity doesn't exceed available stock
+        final maxQuantity = item.product.stock;
+        final validQuantity = quantity > maxQuantity ? maxQuantity : quantity;
+        return item.copyWith(quantity: validQuantity);
       }
       return item;
     }).toList();
@@ -166,7 +174,10 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void incrementQuantity(String productId) {
     final item = state.items.firstWhere((i) => i.product.id == productId);
-    updateQuantity(productId, item.quantity + 1);
+    // Check if we can increment (don't exceed stock)
+    if (item.quantity < item.product.stock) {
+      updateQuantity(productId, item.quantity + 1);
+    }
   }
 
   void decrementQuantity(String productId) {

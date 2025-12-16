@@ -4,6 +4,52 @@ import 'package:posfelix/domain/repositories/expense_repository.dart';
 import 'package:posfelix/domain/repositories/dashboard_repository.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'package:posfelix/presentation/providers/transaction_provider.dart'
+    show DateRange;
+
+/// Provider untuk 7 hari summary (untuk trend chart)
+final last7DaysSummaryProvider = FutureProvider<List<DailySummary>>((
+  ref,
+) async {
+  if (!SupabaseConfig.isConfigured) {
+    return [];
+  }
+  final transactionRepo = getIt<TransactionRepository>();
+  return transactionRepo.getLast7DaysSummary();
+});
+
+/// Dashboard period enum
+enum DashboardPeriod {
+  hari,
+  minggu,
+  bulan;
+
+  factory DashboardPeriod.fromString(String value) {
+    return DashboardPeriod.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => DashboardPeriod.hari,
+    );
+  }
+
+  DateRange getDateRange() {
+    final now = DateTime.now();
+    switch (this) {
+      case DashboardPeriod.hari:
+        final start = DateTime(now.year, now.month, now.day);
+        final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        return DateRange(start: start, end: end);
+      case DashboardPeriod.minggu:
+        final start = now.subtract(Duration(days: now.weekday - 1));
+        final startDate = DateTime(start.year, start.month, start.day);
+        final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        return DateRange(start: startDate, end: end);
+      case DashboardPeriod.bulan:
+        final start = DateTime(now.year, now.month, 1);
+        final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+        return DateRange(start: start, end: end);
+    }
+  }
+}
 
 /// Dashboard data state
 class DashboardState {
@@ -169,57 +215,89 @@ final dashboardProvider =
 // STREAM PROVIDERS (Real-time updates)
 // ============================================
 
-/// Real-time dashboard data stream provider
+/// Cache for tier breakdown data per period
+final _tierBreakdownCache = <DashboardPeriod, Map<String, TierSummary>>{};
+
+/// Real-time dashboard data stream provider with period support
 /// Combines transaction summary, expenses, and tier breakdown
-final dashboardStreamProvider = StreamProvider<DashboardState>((ref) async* {
-  if (!SupabaseConfig.isConfigured) {
-    yield const DashboardState();
-    return;
-  }
+/// Tier breakdown is cached per period to avoid unnecessary refreshes
+final dashboardStreamProvider =
+    StreamProvider.family<DashboardState, DashboardPeriod>((
+      ref,
+      period,
+    ) async* {
+      if (!SupabaseConfig.isConfigured) {
+        yield const DashboardState();
+        return;
+      }
 
-  final dashboardRepo = getIt<DashboardRepository>();
-  final transactionRepo = getIt<TransactionRepository>();
+      final dashboardRepo = getIt<DashboardRepository>();
+      final transactionRepo = getIt<TransactionRepository>();
 
-  final now = DateTime.now();
-  final monthStart = DateTime(now.year, now.month, 1);
-  final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      final now = DateTime.now();
+      final periodRange = period.getDateRange();
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-  // Use DashboardRepository stream for real-time updates
-  await for (final dashboardData in dashboardRepo.getDashboardDataStream()) {
-    // Get monthly omset for tax calculation
-    final monthlySummary = await transactionRepo.getTransactionSummary(
-      startDate: monthStart,
-      endDate: monthEnd,
-    );
+      // Load cached tier breakdown for this period if available
+      var cachedTierBreakdown = _tierBreakdownCache[period];
 
-    // Calculate tax (0.5% of monthly omset)
-    final taxAmount = (monthlySummary.totalOmset * 0.005).round();
+      // Use DashboardRepository stream for real-time updates
+      await for (final _ in dashboardRepo.getDashboardDataStream()) {
+        // Get monthly omset for tax calculation
+        final monthlySummary = await transactionRepo.getTransactionSummary(
+          startDate: monthStart,
+          endDate: monthEnd,
+        );
 
-    // Convert tier breakdown to TierSummary map
-    final Map<String, TierSummary> tierBreakdown = {};
-    for (final entry in dashboardData.tierBreakdown.entries) {
-      tierBreakdown[entry.key] = TierSummary(
-        tier: entry.key,
-        transactionCount: 0, // Not available from DashboardData
-        totalOmset: entry.value,
-        totalProfit: 0, // Not available from DashboardData
-      );
-    }
+        // Get tier breakdown for selected period (only if not cached)
+        final tierBreakdown =
+            cachedTierBreakdown ??
+            await transactionRepo.getTierBreakdown(
+              startDate: periodRange.start,
+              endDate: periodRange.end,
+            );
 
-    yield DashboardState(
-      todayOmset: dashboardData.totalOmset,
-      todayHpp: 0, // Calculate from profit
-      todayExpenses: dashboardData.totalExpenses,
-      todayProfit: dashboardData.totalProfit,
-      todayTransactionCount: dashboardData.totalTransactions,
-      todayAverageTransaction: dashboardData.averageTransaction,
-      monthlyOmset: monthlySummary.totalOmset,
-      taxAmount: taxAmount,
-      tierBreakdown: tierBreakdown,
-      isLoading: false,
-    );
-  }
-});
+        // Cache the tier breakdown for this period
+        _tierBreakdownCache[period] = tierBreakdown;
+        cachedTierBreakdown = tierBreakdown;
+
+        // Get today's transaction summary for HPP calculation
+        final todayStart = DateTime(now.year, now.month, now.day);
+        final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        final todaySummary = await transactionRepo.getTransactionSummary(
+          startDate: todayStart,
+          endDate: todayEnd,
+        );
+
+        // Get today's expenses
+        final expenseRepo = getIt<ExpenseRepository>();
+        final todayExpenses = await expenseRepo.getTotalExpenses(
+          startDate: todayStart,
+          endDate: todayEnd,
+        );
+
+        // Calculate profit correctly (omset - hpp - expenses)
+        final todayProfit =
+            todaySummary.totalOmset - todaySummary.totalHpp - todayExpenses;
+
+        // Calculate tax (0.5% of monthly omset)
+        final taxAmount = (monthlySummary.totalOmset * 0.005).round();
+
+        yield DashboardState(
+          todayOmset: todaySummary.totalOmset,
+          todayHpp: todaySummary.totalHpp,
+          todayExpenses: todayExpenses,
+          todayProfit: todayProfit,
+          todayTransactionCount: todaySummary.totalTransactions,
+          todayAverageTransaction: todaySummary.averageTransaction,
+          monthlyOmset: monthlySummary.totalOmset,
+          taxAmount: taxAmount,
+          tierBreakdown: tierBreakdown,
+          isLoading: false,
+        );
+      }
+    });
 
 /// Real-time profit indicator stream provider
 final profitIndicatorStreamProvider = StreamProvider<ProfitIndicator>((ref) {

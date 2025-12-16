@@ -127,6 +127,40 @@ class ExpenseListNotifier extends StateNotifier<ExpenseListState> {
     }
   }
 
+  Future<void> addExpense(ExpenseModel expense) async {
+    if (_repository == null) return;
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _repository.createExpense(
+        category: expense.category,
+        amount: expense.amount,
+        description: expense.description,
+      );
+      await loadTodayExpenses();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> updateExpense(ExpenseModel expense) async {
+    if (_repository == null) return;
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      // Since we don't have an update method in repository, we'll delete and recreate
+      await _repository.deleteExpense(expense.id);
+      await _repository.createExpense(
+        category: expense.category,
+        amount: expense.amount,
+        description: expense.description,
+      );
+      await loadTodayExpenses();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   Future<void> deleteExpense(String id) async {
     if (_repository == null) return;
 

@@ -5,9 +5,9 @@ import '../../../../config/theme/app_spacing.dart';
 import '../../../../data/models/expense_model.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
-import '../../../widgets/common/custom_button.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/expense_provider.dart';
+import 'expense_form_modal.dart';
 
 class ExpenseScreen extends ConsumerWidget {
   const ExpenseScreen({super.key});
@@ -383,6 +383,20 @@ class ExpenseScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(width: AppSpacing.sm),
+            PopupMenuButton(
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  child: const Text('Edit'),
+                  onTap: () => _showEditExpenseDialog(context, ref, expense),
+                ),
+                PopupMenuItem(
+                  child: const Text('Hapus'),
+                  onTap: () => _confirmDelete(context, ref, expense),
+                ),
+              ],
+              child: const Icon(Icons.more_vert, color: AppColors.textGray),
+            ),
           ],
         ),
       ),
@@ -422,144 +436,15 @@ class ExpenseScreen extends ConsumerWidget {
   }
 
   void _showAddExpenseDialog(BuildContext context, WidgetRef ref) {
-    String selectedCategory = 'LISTRIK';
-    final amountController = TextEditingController();
-    final notesController = TextEditingController();
+    showExpenseFormModal(context);
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 80,
-            left: AppSpacing.md,
-            right: AppSpacing.md,
-            top: AppSpacing.md,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Tambah Pengeluaran',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const Text(
-                  'Kategori',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  items:
-                      [
-                            'LISTRIK',
-                            'GAJI',
-                            'PLASTIK',
-                            'MAKAN_SIANG',
-                            'PEMBELIAN_STOK',
-                            'LAINNYA',
-                          ]
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(_getCategoryLabel(e)),
-                            ),
-                          )
-                          .toList(),
-                  onChanged: (value) => setModalState(
-                    () => selectedCategory = value ?? 'LISTRIK',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Text(
-                  'Nominal',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    prefixText: 'Rp ',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Text(
-                  'Catatan',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Catatan (opsional)',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                CustomButton(
-                  text: 'Simpan',
-                  onPressed: () async {
-                    final amount =
-                        int.tryParse(
-                          amountController.text.replaceAll('.', ''),
-                        ) ??
-                        0;
-                    if (amount <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Nominal harus lebih dari 0'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                      return;
-                    }
-
-                    final navigator = Navigator.of(context);
-                    final messenger = ScaffoldMessenger.of(context);
-
-                    navigator.pop();
-
-                    await ref
-                        .read(expenseListProvider.notifier)
-                        .createExpense(
-                          category: selectedCategory,
-                          amount: amount,
-                          description: notesController.text.isNotEmpty
-                              ? notesController.text
-                              : null,
-                        );
-
-                    // Invalidate stream to refresh
-                    ref.invalidate(todayExpensesStreamProvider);
-
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Pengeluaran berhasil ditambahkan'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  void _showEditExpenseDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ExpenseModel expense,
+  ) {
+    showExpenseFormModal(context, expense: expense);
   }
 
   IconData _getCategoryIcon(String category) {

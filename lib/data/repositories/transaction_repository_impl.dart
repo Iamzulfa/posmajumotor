@@ -270,7 +270,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
     try {
       var query = _client
           .from('transactions')
-          .select('tier, total, profit')
+          .select('tier, total, total_hpp, profit')
           .eq('payment_status', 'COMPLETED');
 
       if (startDate != null) {
@@ -289,10 +289,12 @@ class TransactionRepositoryImpl implements TransactionRepository {
         final tierData = response.where((r) => r['tier'] == tier).toList();
 
         int totalOmset = 0;
+        int totalHpp = 0;
         int totalProfit = 0;
 
         for (final row in tierData) {
           totalOmset += (row['total'] as num).toInt();
+          totalHpp += (row['total_hpp'] as num).toInt();
           totalProfit += (row['profit'] as num).toInt();
         }
 
@@ -300,6 +302,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
           tier: tier,
           transactionCount: tierData.length,
           totalOmset: totalOmset,
+          totalHpp: totalHpp,
           totalProfit: totalProfit,
         );
       }
@@ -307,6 +310,49 @@ class TransactionRepositoryImpl implements TransactionRepository {
       return breakdown;
     } catch (e) {
       AppLogger.error('Error getting tier breakdown', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<DailySummary>> getLast7DaysSummary() async {
+    try {
+      final now = DateTime.now();
+      final dailySummaries = <DailySummary>[];
+
+      // Get data for last 7 days
+      for (int i = 6; i >= 0; i--) {
+        final date = now.subtract(Duration(days: i));
+        final startDate = DateTime(date.year, date.month, date.day);
+        final endDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+        final response = await _client
+            .from('transactions')
+            .select('total, profit')
+            .eq('payment_status', 'COMPLETED')
+            .gte('created_at', startDate.toIso8601String())
+            .lte('created_at', endDate.toIso8601String());
+
+        int totalOmset = 0;
+        int totalProfit = 0;
+
+        for (final row in response) {
+          totalOmset += (row['total'] as num).toInt();
+          totalProfit += (row['profit'] as num).toInt();
+        }
+
+        dailySummaries.add(
+          DailySummary(
+            date: date,
+            totalOmset: totalOmset,
+            totalProfit: totalProfit,
+          ),
+        );
+      }
+
+      return dailySummaries;
+    } catch (e) {
+      AppLogger.error('Error getting last 7 days summary', e);
       rethrow;
     }
   }
@@ -439,10 +485,12 @@ class TransactionRepositoryImpl implements TransactionRepository {
             final tierData = completed.where((t) => t.tier == tier).toList();
 
             int totalOmset = 0;
+            int totalHpp = 0;
             int totalProfit = 0;
 
             for (final t in tierData) {
               totalOmset += t.total;
+              totalHpp += t.totalHpp;
               totalProfit += t.profit;
             }
 
@@ -450,6 +498,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
               tier: tier,
               transactionCount: tierData.length,
               totalOmset: totalOmset,
+              totalHpp: totalHpp,
               totalProfit: totalProfit,
             );
           }

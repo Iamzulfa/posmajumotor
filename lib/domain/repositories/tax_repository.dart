@@ -31,6 +31,9 @@ abstract class TaxRepository {
     required int year,
   });
 
+  /// Get daily profit/loss report for specific date
+  Future<ProfitLossReport> getDailyProfitLossReport({required DateTime date});
+
   // ============================================
   // STREAM METHODS (Real-time updates)
   // ============================================

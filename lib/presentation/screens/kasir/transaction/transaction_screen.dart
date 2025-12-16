@@ -213,10 +213,12 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   ) {
     return productsAsync.when(
       data: (products) {
-        // Filter by search query
-        var filtered = products;
+        // Filter by stock > 0 first
+        var filtered = products.where((p) => p.stock > 0).toList();
+
+        // Then filter by search query
         if (_searchQuery.isNotEmpty) {
-          filtered = products
+          filtered = filtered
               .where(
                 (p) =>
                     p.name.toLowerCase().contains(_searchQuery) ||
@@ -470,23 +472,35 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                         .read(cartProvider.notifier)
                         .decrementQuantity(item.product.id),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                    child: Text(
-                      '${item.quantity}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                  GestureDetector(
+                    onTap: () => _showQuantityDialog(item),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text(
+                        '${item.quantity}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textDark,
+                        ),
                       ),
                     ),
                   ),
                   _buildQuantityButton(
                     Icons.add,
-                    () => ref
-                        .read(cartProvider.notifier)
-                        .incrementQuantity(item.product.id),
+                    item.quantity < item.product.stock
+                        ? () => ref
+                              .read(cartProvider.notifier)
+                              .incrementQuantity(item.product.id)
+                        : null,
                   ),
                 ],
               ),
@@ -505,17 +519,28 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     );
   }
 
-  Widget _buildQuantityButton(IconData icon, VoidCallback onPressed) {
+  Widget _buildQuantityButton(IconData icon, VoidCallback? onPressed) {
+    final isEnabled = onPressed != null;
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(
+            color: isEnabled
+                ? AppColors.border
+                : AppColors.textGray.withValues(alpha: 0.3),
+          ),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Icon(icon, size: 20, color: AppColors.textGray),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isEnabled
+              ? AppColors.textGray
+              : AppColors.textGray.withValues(alpha: 0.3),
+        ),
       ),
     );
   }
@@ -595,6 +620,67 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
         ),
       );
     }
+  }
+
+  void _showQuantityDialog(CartItem item) {
+    final quantityController = TextEditingController(
+      text: item.quantity.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Ubah Jumlah - ${item.product.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Masukkan jumlah',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Stok tersedia: ${item.product.stock}',
+              style: const TextStyle(fontSize: 12, color: AppColors.textGray),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              final newQuantity = int.tryParse(quantityController.text) ?? 0;
+              if (newQuantity > 0 && newQuantity <= item.product.stock) {
+                ref
+                    .read(cartProvider.notifier)
+                    .updateQuantity(item.product.id, newQuantity);
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Jumlah harus antara 1 dan ${item.product.stock}',
+                    ),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatNumber(int number) {
