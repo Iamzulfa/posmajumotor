@@ -123,6 +123,14 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<ProductModel> updateProduct(ProductModel product) async {
     try {
+      AppLogger.info(
+        'Updating product: id=${product.id}, name=${product.name}',
+      );
+
+      if (product.id.isEmpty) {
+        throw Exception('Product ID is empty');
+      }
+
       final data = {
         'sku': product.sku,
         'barcode': product.barcode,
@@ -138,6 +146,8 @@ class ProductRepositoryImpl implements ProductRepository {
         'harga_grossir': product.hargaGrossir,
         'is_active': product.isActive,
       };
+
+      AppLogger.info('Update data: $data');
 
       final response = await _client
           .from('products')
@@ -241,6 +251,120 @@ class ProductRepositoryImpl implements ProductRepository {
       return response.map((json) => BrandModel.fromJson(json)).toList();
     } catch (e) {
       AppLogger.error('Error fetching brands', e);
+      rethrow;
+    }
+  }
+
+  // ============================================
+  // STREAM METHODS (Real-time updates)
+  // ============================================
+
+  @override
+  Stream<List<ProductModel>> getProductsStream({
+    String? categoryId,
+    String? brandId,
+    bool activeOnly = true,
+  }) {
+    try {
+      // Use Supabase real-time stream with select to include relations
+      var stream = _client.from('products').stream(primaryKey: ['id']).map((
+        data,
+      ) {
+        var products = data.map((json) {
+          // Try to parse with relations if available
+          try {
+            return ProductModel.fromJson(json);
+          } catch (e) {
+            AppLogger.error('Error parsing product', e);
+            return ProductModel.fromJson(json);
+          }
+        }).toList();
+
+        // Apply filters
+        if (activeOnly) {
+          products = products.where((p) => p.isActive).toList();
+        }
+        if (categoryId != null) {
+          products = products.where((p) => p.categoryId == categoryId).toList();
+        }
+        if (brandId != null) {
+          products = products.where((p) => p.brandId == brandId).toList();
+        }
+
+        // Sort by name
+        products.sort((a, b) => a.name.compareTo(b.name));
+        return products;
+      });
+
+      return stream.handleError((error) {
+        AppLogger.error('Error streaming products', error);
+      });
+    } catch (e) {
+      AppLogger.error('Error setting up products stream', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<ProductModel?> getProductStream(String id) {
+    try {
+      return _client
+          .from('products')
+          .stream(primaryKey: ['id'])
+          .eq('id', id)
+          .map((data) {
+            if (data.isEmpty) return null;
+            return ProductModel.fromJson(data.first);
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming product $id', error);
+          });
+    } catch (e) {
+      AppLogger.error('Error setting up product stream', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<List<CategoryModel>> getCategoriesStream() {
+    try {
+      return _client
+          .from('categories')
+          .stream(primaryKey: ['id'])
+          .map((data) {
+            var categories = data
+                .map((json) => CategoryModel.fromJson(json))
+                .toList();
+            categories = categories.where((c) => c.isActive).toList();
+            categories.sort((a, b) => a.name.compareTo(b.name));
+            return categories;
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming categories', error);
+          });
+    } catch (e) {
+      AppLogger.error('Error setting up categories stream', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<List<BrandModel>> getBrandsStream() {
+    try {
+      return _client
+          .from('brands')
+          .stream(primaryKey: ['id'])
+          .map((data) {
+            var brands = data.map((json) => BrandModel.fromJson(json)).toList();
+            brands = brands.where((b) => b.isActive).toList();
+            brands.sort((a, b) => a.name.compareTo(b.name));
+            return brands;
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming brands', error);
+          });
+    } catch (e) {
+      AppLogger.error('Error setting up brands stream', e);
       rethrow;
     }
   }

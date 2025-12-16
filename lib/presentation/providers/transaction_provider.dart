@@ -194,3 +194,55 @@ class DateRange {
     return DateRange(start: now.subtract(const Duration(days: 7)), end: now);
   }
 }
+
+// ============================================
+// STREAM PROVIDERS (Real-time updates)
+// ============================================
+
+/// Real-time today's transactions stream provider
+final todayTransactionsStreamProvider = StreamProvider<List<TransactionModel>>((
+  ref,
+) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value([]);
+  }
+  final repository = getIt<TransactionRepository>();
+  return repository.getTodayTransactionsStream();
+});
+
+/// Real-time transaction summary stream provider
+final transactionSummaryStreamProvider =
+    StreamProvider.family<TransactionSummary, DateRange?>((ref, dateRange) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value(
+          TransactionSummary(
+            totalTransactions: 0,
+            totalOmset: 0,
+            totalHpp: 0,
+            totalProfit: 0,
+            averageTransaction: 0,
+          ),
+        );
+      }
+      final repository = getIt<TransactionRepository>();
+      return repository.getTransactionSummaryStream(
+        startDate: dateRange?.start,
+        endDate: dateRange?.end,
+      );
+    });
+
+/// Real-time tier breakdown stream provider
+final tierBreakdownStreamProvider =
+    StreamProvider.family<Map<String, TierSummary>, DateRange?>((
+      ref,
+      dateRange,
+    ) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value({});
+      }
+      final repository = getIt<TransactionRepository>();
+      return repository.getTierBreakdownStream(
+        startDate: dateRange?.start,
+        endDate: dateRange?.end,
+      );
+    });

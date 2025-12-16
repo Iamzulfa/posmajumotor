@@ -142,7 +142,12 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
   }
 }
 
-/// Product list provider
+/// Product repository provider
+final productRepositoryProvider = Provider<ProductRepository>((ref) {
+  return getIt<ProductRepository>();
+});
+
+/// Product list provider (StateNotifier for local state management)
 final productListProvider =
     StateNotifierProvider<ProductListNotifier, ProductListState>((ref) {
       final repository = SupabaseConfig.isConfigured
@@ -159,4 +164,48 @@ final productDetailProvider = FutureProvider.family<ProductModel?, String>((
   if (!SupabaseConfig.isConfigured) return null;
   final repository = getIt<ProductRepository>();
   return repository.getProductById(id);
+});
+
+// ============================================
+// STREAM PROVIDERS (Real-time updates)
+// ============================================
+
+/// Real-time products stream provider
+final productsStreamProvider = StreamProvider<List<ProductModel>>((ref) {
+  if (!SupabaseConfig.isConfigured) {
+    // Return empty stream for offline mode
+    return Stream.value([]);
+  }
+  final repository = getIt<ProductRepository>();
+  return repository.getProductsStream();
+});
+
+/// Real-time categories stream provider
+final categoriesStreamProvider = StreamProvider<List<CategoryModel>>((ref) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value([]);
+  }
+  final repository = getIt<ProductRepository>();
+  return repository.getCategoriesStream();
+});
+
+/// Real-time brands stream provider
+final brandsStreamProvider = StreamProvider<List<BrandModel>>((ref) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value([]);
+  }
+  final repository = getIt<ProductRepository>();
+  return repository.getBrandsStream();
+});
+
+/// Real-time single product stream provider
+final productStreamProvider = StreamProvider.family<ProductModel?, String>((
+  ref,
+  id,
+) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value(null);
+  }
+  final repository = getIt<ProductRepository>();
+  return repository.getProductStream(id);
 });

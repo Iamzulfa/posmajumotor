@@ -2,6 +2,10 @@ import 'package:posfelix/data/models/models.dart';
 
 /// Transaction Repository Interface
 abstract class TransactionRepository {
+  // ============================================
+  // FUTURE METHODS (One-time fetch)
+  // ============================================
+
   /// Get all transactions with optional filters
   Future<List<TransactionModel>> getTransactions({
     DateTime? startDate,
@@ -40,6 +44,33 @@ abstract class TransactionRepository {
 
   /// Get transactions grouped by tier
   Future<Map<String, TierSummary>> getTierBreakdown({
+    DateTime? startDate,
+    DateTime? endDate,
+  });
+
+  // ============================================
+  // STREAM METHODS (Real-time updates)
+  // ============================================
+
+  /// Stream all transactions with real-time updates
+  Stream<List<TransactionModel>> getTransactionsStream({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? tier,
+    int? limit,
+  });
+
+  /// Stream today's transactions with real-time updates
+  Stream<List<TransactionModel>> getTodayTransactionsStream();
+
+  /// Stream transaction summary with real-time updates
+  Stream<TransactionSummary> getTransactionSummaryStream({
+    DateTime? startDate,
+    DateTime? endDate,
+  });
+
+  /// Stream tier breakdown with real-time updates
+  Stream<Map<String, TierSummary>> getTierBreakdownStream({
     DateTime? startDate,
     DateTime? endDate,
   });

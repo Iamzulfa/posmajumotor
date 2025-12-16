@@ -3,6 +3,7 @@ import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/expense_repository.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'transaction_provider.dart' show DateRange;
 
 /// Expense list state
 class ExpenseListState {
@@ -151,3 +152,46 @@ final expenseListProvider =
           : null;
       return ExpenseListNotifier(repository);
     });
+
+// ============================================
+// STREAM PROVIDERS (Real-time updates)
+// ============================================
+
+/// Real-time today's expenses stream provider
+final todayExpensesStreamProvider = StreamProvider<List<ExpenseModel>>((ref) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value([]);
+  }
+  final repository = getIt<ExpenseRepository>();
+  return repository.getTodayExpensesStream();
+});
+
+/// Real-time expense summary by category stream provider
+final expenseSummaryStreamProvider =
+    StreamProvider.family<Map<String, int>, DateRange?>((ref, dateRange) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value({});
+      }
+      final repository = getIt<ExpenseRepository>();
+      return repository.getExpenseSummaryByCategoryStream(
+        startDate: dateRange?.start,
+        endDate: dateRange?.end,
+      );
+    });
+
+/// Real-time total expenses stream provider
+final totalExpensesStreamProvider = StreamProvider.family<int, DateRange?>((
+  ref,
+  dateRange,
+) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value(0);
+  }
+  final repository = getIt<ExpenseRepository>();
+  return repository.getTotalExpensesStream(
+    startDate: dateRange?.start,
+    endDate: dateRange?.end,
+  );
+});
+
+// DateRange is imported from transaction_provider.dart via providers.dart

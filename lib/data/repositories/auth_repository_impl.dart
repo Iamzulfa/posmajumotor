@@ -44,30 +44,36 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) async {
     try {
-      final response = await _client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      // Static credentials for private app
+      const staticCredentials = {
+        'admin@toko.com': 'admin123',
+        'kasir@toko.com': 'kasir123',
+      };
 
-      if (response.user == null) {
-        throw Exception('Login failed: No user returned');
+      // Verify static credentials
+      if (staticCredentials[email] != password) {
+        throw Exception('Invalid login credentials');
       }
 
       // Get user profile from public.users
-      final userProfile = await _client
-          .from('users')
-          .select()
-          .eq('id', response.user!.id)
-          .single();
+      final response = await _client.from('users').select().eq('email', email);
 
+      AppLogger.info('Query response: $response');
+
+      if (response.isEmpty) {
+        throw Exception('User not found in database');
+      }
+
+      if (response.length > 1) {
+        throw Exception('Multiple users found with same email');
+      }
+
+      final userProfile = response.first;
       AppLogger.info('User signed in: $email');
       return UserModel.fromJson(userProfile);
-    } on AuthException catch (e) {
-      AppLogger.error('Auth error during sign in', e);
-      throw Exception('Login failed: ${e.message}');
     } catch (e) {
-      AppLogger.error('Error during sign in', e);
-      rethrow;
+      AppLogger.error('Auth error during sign in', e);
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 

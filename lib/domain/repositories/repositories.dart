@@ -6,3 +6,4 @@ export 'product_repository.dart';
 export 'transaction_repository.dart';
 export 'expense_repository.dart';
 export 'tax_repository.dart';
+export 'dashboard_repository.dart';

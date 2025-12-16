@@ -1,82 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
+import '../../../../data/models/expense_model.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/custom_button.dart';
+import '../../../widgets/common/loading_widget.dart';
+import '../../../providers/expense_provider.dart';
 
-class ExpenseScreen extends StatefulWidget {
+class ExpenseScreen extends ConsumerWidget {
   const ExpenseScreen({super.key});
 
   @override
-  State<ExpenseScreen> createState() => _ExpenseScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch real-time stream
+    final expensesAsync = ref.watch(todayExpensesStreamProvider);
 
-class _ExpenseScreenState extends State<ExpenseScreen> {
-  final List<Map<String, dynamic>> _expenses = [
-    {
-      'category': 'LISTRIK',
-      'amount': 350000,
-      'notes': 'Tagihan listrik bulan ini',
-      'time': '09:30',
-    },
-    {
-      'category': 'MAKAN_SIANG',
-      'amount': 75000,
-      'notes': 'Makan siang karyawan',
-      'time': '12:15',
-    },
-    {
-      'category': 'PLASTIK',
-      'amount': 50000,
-      'notes': 'Plastik kemasan',
-      'time': '14:00',
-    },
-    {
-      'category': 'GAJI',
-      'amount': 1500000,
-      'notes': 'Gaji karyawan minggu ini',
-      'time': '08:00',
-    },
-  ];
+    final syncStatus = expensesAsync.when(
+      data: (_) => SyncStatus.online,
+      loading: () => SyncStatus.syncing,
+      error: (_, __) => SyncStatus.offline,
+    );
 
-  // Category breakdown data
-  final List<Map<String, dynamic>> _categoryBreakdown = [
-    {'category': 'GAJI', 'amount': 1500000, 'percentage': 0.76},
-    {'category': 'LISTRIK', 'amount': 350000, 'percentage': 0.18},
-    {'category': 'MAKAN_SIANG', 'amount': 75000, 'percentage': 0.04},
-    {'category': 'PLASTIK', 'amount': 50000, 'percentage': 0.02},
-  ];
-
-  int get _totalExpense =>
-      _expenses.fold(0, (sum, e) => sum + (e['amount'] as int));
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const AppHeader(
-                title: 'Pengeluaran',
-                syncStatus: SyncStatus.online,
-                lastSyncTime: '2 min ago',
+        child: expensesAsync.when(
+          data: (expenses) => RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(todayExpensesStreamProvider);
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  AppHeader(
+                    title: 'Pengeluaran',
+                    syncStatus: syncStatus,
+                    lastSyncTime: 'Real-time',
+                  ),
+                  _buildTotalCard(expenses),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildCategoryBreakdown(expenses),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildSectionTitle(context),
+                  _buildExpenseList(context, ref, expenses),
+                  const SizedBox(height: 80),
+                ],
               ),
-              _buildTotalCard(),
-              const SizedBox(height: AppSpacing.md),
-              _buildCategoryBreakdown(),
-              const SizedBox(height: AppSpacing.md),
-              _buildSectionTitle('Pengeluaran Hari Ini'),
-              _buildExpenseList(),
-              const SizedBox(height: 80), // Space for FAB
-            ],
+            ),
+          ),
+          loading: () => const LoadingWidget(),
+          error: (error, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppColors.error,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text('$error', style: const TextStyle(color: AppColors.error)),
+                const SizedBox(height: AppSpacing.md),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(todayExpensesStreamProvider),
+                  child: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddExpenseDialog(),
+        onPressed: () => _showAddExpenseDialog(context, ref),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Tambah', style: TextStyle(color: Colors.white)),
@@ -84,7 +82,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildTotalCard() {
+  Widget _buildTotalCard(List<ExpenseModel> expenses) {
+    final total = expenses.fold(0, (sum, e) => sum + e.amount);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -118,7 +117,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Rp ${_formatNumber(_totalExpense)}',
+                  'Rp ${_formatNumber(total)}',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -133,7 +132,20 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildCategoryBreakdown() {
+  Widget _buildCategoryBreakdown(List<ExpenseModel> expenses) {
+    // Calculate breakdown from expenses
+    final Map<String, int> breakdown = {};
+    for (final expense in expenses) {
+      breakdown[expense.category] =
+          (breakdown[expense.category] ?? 0) + expense.amount;
+    }
+
+    final total = breakdown.values.fold(0, (sum, v) => sum + v);
+
+    if (breakdown.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -154,14 +166,20 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          ..._categoryBreakdown.map((item) => _buildCategoryRow(item)),
+          ...breakdown.entries.map(
+            (entry) => _buildCategoryRow(
+              entry.key,
+              entry.value,
+              total > 0 ? entry.value / total : 0,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryRow(Map<String, dynamic> item) {
-    final color = _getCategoryColor(item['category']);
+  Widget _buildCategoryRow(String category, int amount, double percentage) {
+    final color = _getCategoryColor(category);
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -180,11 +198,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
-                child: Icon(
-                  _getCategoryIcon(item['category']),
-                  color: color,
-                  size: 28,
-                ),
+                child: Icon(_getCategoryIcon(category), color: color, size: 28),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -192,7 +206,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _getCategoryLabel(item['category']),
+                      _getCategoryLabel(category),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -201,7 +215,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Rp ${_formatNumber(item['amount'])}',
+                      'Rp ${_formatNumber(amount)}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -211,18 +225,13 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${(item['percentage'] * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                ],
+              Text(
+                '${(percentage * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -230,7 +239,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
-              value: item['percentage'],
+              value: percentage,
               backgroundColor: AppColors.secondary,
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 8,
@@ -241,15 +250,15 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
+          const Text(
+            'Pengeluaran Hari Ini',
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
@@ -261,90 +270,162 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildExpenseList() {
+  Widget _buildExpenseList(
+    BuildContext context,
+    WidgetRef ref,
+    List<ExpenseModel> expenses,
+  ) {
+    if (expenses.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Center(
+          child: Text(
+            'Belum ada pengeluaran hari ini',
+            style: TextStyle(color: AppColors.textGray),
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: _expenses.length,
-      itemBuilder: (context, index) => _buildExpenseCard(_expenses[index]),
+      itemCount: expenses.length,
+      itemBuilder: (context, index) =>
+          _buildExpenseCard(context, ref, expenses[index]),
     );
   }
 
-  Widget _buildExpenseCard(Map<String, dynamic> expense) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.border),
+  Widget _buildExpenseCard(
+    BuildContext context,
+    WidgetRef ref,
+    ExpenseModel expense,
+  ) {
+    final time = expense.createdAt != null
+        ? '${expense.createdAt!.hour.toString().padLeft(2, '0')}:${expense.createdAt!.minute.toString().padLeft(2, '0')}'
+        : '-';
+
+    return Dismissible(
+      key: Key(expense.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: AppSpacing.md),
+        color: AppColors.error,
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: _getCategoryColor(
-                expense['category'],
-              ).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      confirmDismiss: (direction) => _confirmDelete(context, ref, expense),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: _getCategoryColor(
+                  expense.category,
+                ).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: Icon(
+                _getCategoryIcon(expense.category),
+                color: _getCategoryColor(expense.category),
+                size: 24,
+              ),
             ),
-            child: Icon(
-              _getCategoryIcon(expense['category']),
-              color: _getCategoryColor(expense['category']),
-              size: 24,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getCategoryLabel(expense.category),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                  Text(
+                    expense.description ?? '-',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textGray,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  _getCategoryLabel(expense['category']),
+                  'Rp ${_formatNumber(expense.amount)}',
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textDark,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
                   ),
                 ),
                 Text(
-                  expense['notes'],
+                  time,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textGray,
+                    fontSize: 12,
+                    color: AppColors.textLight,
                   ),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'Rp ${_formatNumber(expense['amount'])}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.error,
-                ),
-              ),
-              Text(
-                expense['time'],
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textLight,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  void _showAddExpenseDialog() {
+  Future<bool> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    ExpenseModel expense,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Pengeluaran'),
+        content: Text(
+          'Yakin ingin menghapus "${_getCategoryLabel(expense.category)}" - Rp ${_formatNumber(expense.amount)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await ref.read(expenseListProvider.notifier).deleteExpense(expense.id);
+    }
+    return false; // Don't dismiss, we handle it manually
+  }
+
+  void _showAddExpenseDialog(BuildContext context, WidgetRef ref) {
+    String selectedCategory = 'LISTRIK';
+    final amountController = TextEditingController();
+    final notesController = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -352,69 +433,129 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 80,
-          left: AppSpacing.md,
-          right: AppSpacing.md,
-          top: AppSpacing.md,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Tambah Pengeluaran',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              const Text(
-                'Kategori',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                items: ['LISTRIK', 'GAJI', 'PLASTIK', 'MAKAN_SIANG', 'LAINNYA']
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(_getCategoryLabel(e)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {},
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Text(
-                'Nominal',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              const TextField(
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  prefixText: 'Rp ',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 80,
+            left: AppSpacing.md,
+            right: AppSpacing.md,
+            top: AppSpacing.md,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tambah Pengeluaran',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Text(
-                'Catatan',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              const TextField(
-                decoration: InputDecoration(border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              CustomButton(
-                text: 'Simpan',
-                onPressed: () => Navigator.pop(context),
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
+                const SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Kategori',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedCategory,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  items:
+                      [
+                            'LISTRIK',
+                            'GAJI',
+                            'PLASTIK',
+                            'MAKAN_SIANG',
+                            'PEMBELIAN_STOK',
+                            'LAINNYA',
+                          ]
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(_getCategoryLabel(e)),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (value) => setModalState(
+                    () => selectedCategory = value ?? 'LISTRIK',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                  'Nominal',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    prefixText: 'Rp ',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                  'Catatan',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Catatan (opsional)',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                CustomButton(
+                  text: 'Simpan',
+                  onPressed: () async {
+                    final amount =
+                        int.tryParse(
+                          amountController.text.replaceAll('.', ''),
+                        ) ??
+                        0;
+                    if (amount <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Nominal harus lebih dari 0'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                      return;
+                    }
+
+                    final navigator = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
+
+                    navigator.pop();
+
+                    await ref
+                        .read(expenseListProvider.notifier)
+                        .createExpense(
+                          category: selectedCategory,
+                          amount: amount,
+                          description: notesController.text.isNotEmpty
+                              ? notesController.text
+                              : null,
+                        );
+
+                    // Invalidate stream to refresh
+                    ref.invalidate(todayExpensesStreamProvider);
+
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Pengeluaran berhasil ditambahkan'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+            ),
           ),
         ),
       ),
@@ -431,6 +572,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         return Icons.shopping_bag;
       case 'MAKAN_SIANG':
         return Icons.restaurant;
+      case 'PEMBELIAN_STOK':
+        return Icons.inventory;
       default:
         return Icons.receipt;
     }
@@ -446,6 +589,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         return Colors.purple;
       case 'MAKAN_SIANG':
         return Colors.green;
+      case 'PEMBELIAN_STOK':
+        return Colors.teal;
       default:
         return AppColors.textGray;
     }
@@ -461,6 +606,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         return 'Plastik';
       case 'MAKAN_SIANG':
         return 'Makan Siang';
+      case 'PEMBELIAN_STOK':
+        return 'Pembelian Stok';
       default:
         return 'Lainnya';
     }

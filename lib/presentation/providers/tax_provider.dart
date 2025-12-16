@@ -3,6 +3,7 @@ import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/tax_repository.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'dashboard_provider.dart' show TaxPeriod;
 
 /// Tax center state
 class TaxCenterState {
@@ -139,3 +140,63 @@ final taxCenterProvider =
           : null;
       return TaxCenterNotifier(repository);
     });
+
+// ============================================
+// STREAM PROVIDERS (Real-time updates)
+// ============================================
+
+// TaxPeriod is imported from dashboard_provider.dart
+
+/// Real-time tax calculation stream provider
+final taxCalculationStreamProvider =
+    StreamProvider.family<TaxCalculation, TaxPeriod>((ref, period) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value(
+          TaxCalculation(
+            month: period.month,
+            year: period.year,
+            totalOmset: 0,
+            taxAmount: 0,
+            isPaid: false,
+          ),
+        );
+      }
+      final repository = getIt<TaxRepository>();
+      return repository.calculateTaxStream(
+        month: period.month,
+        year: period.year,
+      );
+    });
+
+/// Real-time profit/loss report stream provider
+final profitLossReportStreamProvider =
+    StreamProvider.family<ProfitLossReport, TaxPeriod>((ref, period) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value(
+          ProfitLossReport(
+            month: period.month,
+            year: period.year,
+            totalOmset: 0,
+            totalHpp: 0,
+            totalExpenses: 0,
+            grossProfit: 0,
+            netProfit: 0,
+            tierBreakdown: {},
+          ),
+        );
+      }
+      final repository = getIt<TaxRepository>();
+      return repository.getProfitLossReportStream(
+        month: period.month,
+        year: period.year,
+      );
+    });
+
+/// Real-time tax payments stream provider
+final taxPaymentsStreamProvider = StreamProvider<List<TaxPaymentModel>>((ref) {
+  if (!SupabaseConfig.isConfigured) {
+    return Stream.value([]);
+  }
+  final repository = getIt<TaxRepository>();
+  return repository.getTaxPaymentsStream(limit: 12);
+});

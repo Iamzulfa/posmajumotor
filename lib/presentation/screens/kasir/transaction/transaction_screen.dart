@@ -1,62 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
+import '../../../../data/models/models.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/pill_selector.dart';
 import '../../../widgets/common/custom_button.dart';
+import '../../../widgets/common/loading_widget.dart';
+import '../../../providers/product_provider.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../providers/transaction_provider.dart';
 
-class TransactionScreen extends StatefulWidget {
+class TransactionScreen extends ConsumerStatefulWidget {
   const TransactionScreen({super.key});
 
   @override
-  State<TransactionScreen> createState() => _TransactionScreenState();
+  ConsumerState<TransactionScreen> createState() => _TransactionScreenState();
 }
 
-class _TransactionScreenState extends State<TransactionScreen> {
+class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   final _searchController = TextEditingController();
   final _notesController = TextEditingController();
-  String _selectedTier = 'UMUM';
-  String _selectedPayment = 'CASH';
-  final List<Map<String, dynamic>> _cart = [];
+  String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _products = [
-    {
-      'name': 'Ban Michelin 90/90 Ring 14',
-      'stock': 15,
-      'priceUmum': 450000,
-      'priceBengkel': 420000,
-      'priceGrossir': 380000,
-    },
-    {
-      'name': 'Oli Shell Helix 1L',
-      'stock': 32,
-      'priceUmum': 85000,
-      'priceBengkel': 78000,
-      'priceGrossir': 70000,
-    },
-    {
-      'name': 'Rantai Motor 415H',
-      'stock': 5,
-      'priceUmum': 210000,
-      'priceBengkel': 195000,
-      'priceGrossir': 175000,
-    },
-    {
-      'name': 'Gearset Supra X 125',
-      'stock': 8,
-      'priceUmum': 530000,
-      'priceBengkel': 490000,
-      'priceGrossir': 450000,
-    },
-    {
-      'name': 'Aki Kering 5A',
-      'stock': 12,
-      'priceUmum': 380000,
-      'priceBengkel': 350000,
-      'priceGrossir': 320000,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Invalidate products stream when screen is opened to get latest data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(productsStreamProvider);
+    });
+  }
 
   @override
   void dispose() {
@@ -65,53 +40,30 @@ class _TransactionScreenState extends State<TransactionScreen> {
     super.dispose();
   }
 
-  int _getPrice(Map<String, dynamic> product) {
-    switch (_selectedTier) {
-      case 'BENGKEL':
-        return product['priceBengkel'];
-      case 'GROSSIR':
-        return product['priceGrossir'];
-      default:
-        return product['priceUmum'];
-    }
-  }
-
-  void _addToCart(Map<String, dynamic> product) {
-    setState(() {
-      final existingIndex = _cart.indexWhere(
-        (item) => item['name'] == product['name'],
-      );
-      if (existingIndex >= 0) {
-        _cart[existingIndex]['quantity']++;
-      } else {
-        _cart.add({...product, 'quantity': 1, 'price': _getPrice(product)});
-      }
-    });
-  }
-
-  void _updateQuantity(int index, int delta) {
-    setState(() {
-      _cart[index]['quantity'] += delta;
-      if (_cart[index]['quantity'] <= 0) _cart.removeAt(index);
-    });
-  }
-
-  int get _subtotal => _cart.fold(
-    0,
-    (sum, item) => sum + (item['price'] as int) * (item['quantity'] as int),
-  );
-
   @override
   Widget build(BuildContext context) {
+    // Watch real-time stream
+    final productsAsync = ref.watch(productsStreamProvider);
+    final cartState = ref.watch(cartProvider);
+    final transactionState = ref.watch(transactionListProvider);
+
+    final syncStatus = productsAsync.when(
+      data: (_) => SyncStatus.online,
+      loading: () => SyncStatus.syncing,
+      error: (_, __) => SyncStatus.offline,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
-            const AppHeader(
+            AppHeader(
               title: 'Transaksi Penjualan',
-              syncStatus: SyncStatus.online,
-              lastSyncTime: '2 min ago',
+              syncStatus: syncStatus,
+              lastSyncTime: syncStatus == SyncStatus.online
+                  ? 'Real-time'
+                  : 'Syncing...',
             ),
             // Tier Selector
             Padding(
@@ -119,7 +71,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
               child: PillSelector<String>(
                 label: 'Tier Pembeli',
                 items: const ['UMUM', 'BENGKEL', 'GROSSIR'],
-                selectedItem: _selectedTier,
+                selectedItem: cartState.tier,
                 itemLabel: (item) {
                   switch (item) {
                     case 'UMUM':
@@ -132,59 +84,23 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       return item;
                   }
                 },
-                onSelected: (item) => setState(() => _selectedTier = item),
+                onSelected: (item) =>
+                    ref.read(cartProvider.notifier).setTier(item),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            // Product Section Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Produk Tersedia',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Cari produk...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      fillColor: AppColors.background,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppSpacing.radiusMd,
-                        ),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onChanged: (value) => setState(() {}),
-                  ),
-                ],
-              ),
-            ),
+            // Product Section
+            _buildProductSection(cartState),
             const SizedBox(height: AppSpacing.sm),
-            // Product List (always visible)
+            // Product List
             SizedBox(
               height: 180,
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                itemCount: _products.length,
-                itemBuilder: (context, index) =>
-                    _buildProductItem(_products[index]),
-              ),
+              child: _buildProductList(productsAsync, cartState),
             ),
-            // Cart Section (if has items)
-            if (_cart.isNotEmpty) ...[
+            // Cart Section
+            if (cartState.items.isNotEmpty) ...[
               const Divider(height: 1),
-              Expanded(child: _buildCartSection()),
+              Expanded(child: _buildCartSection(cartState, transactionState)),
             ] else
               const Expanded(
                 child: Center(
@@ -201,7 +117,88 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  Widget _buildProductItem(Map<String, dynamic> product) {
+  Widget _buildProductSection(CartState cartState) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Produk Tersedia',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Cari produk...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: AppColors.background,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onChanged: (value) {
+              setState(() => _searchQuery = value.toLowerCase());
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductList(
+    AsyncValue<List<ProductModel>> productsAsync,
+    CartState cartState,
+  ) {
+    return productsAsync.when(
+      data: (products) {
+        // Filter by search query
+        var filtered = products;
+        if (_searchQuery.isNotEmpty) {
+          filtered = products
+              .where(
+                (p) =>
+                    p.name.toLowerCase().contains(_searchQuery) ||
+                    (p.sku?.toLowerCase().contains(_searchQuery) ?? false),
+              )
+              .toList();
+        }
+
+        if (filtered.isEmpty) {
+          return const Center(
+            child: Text(
+              'Tidak ada produk',
+              style: TextStyle(color: AppColors.textGray),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          itemCount: filtered.length,
+          itemBuilder: (context, index) =>
+              _buildProductItemFromModel(filtered[index], cartState.tier),
+        );
+      },
+      loading: () => const LoadingWidget(),
+      error: (error, _) => Center(
+        child: Text(
+          'Error: $error',
+          style: const TextStyle(color: AppColors.error),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductItemFromModel(ProductModel product, String tier) {
+    final price = product.getPriceByTier(tier);
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -217,7 +214,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product['name'],
+                  product.name,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -226,10 +223,12 @@ class _TransactionScreenState extends State<TransactionScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Stok: ${product['stock']} | Rp ${_formatNumber(_getPrice(product))}',
-                  style: const TextStyle(
+                  'Stok: ${product.stock} | Rp ${_formatNumber(price)}',
+                  style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.textGray,
+                    color: product.stock > 0
+                        ? AppColors.textGray
+                        : AppColors.error,
                   ),
                 ),
               ],
@@ -237,15 +236,20 @@ class _TransactionScreenState extends State<TransactionScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add_circle, size: 32),
-            color: AppColors.primary,
-            onPressed: () => _addToCart(product),
+            color: product.stock > 0 ? AppColors.primary : AppColors.textGray,
+            onPressed: product.stock > 0
+                ? () => ref.read(cartProvider.notifier).addItem(product)
+                : null,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCartSection() {
+  Widget _buildCartSection(
+    CartState cartState,
+    TransactionListState transactionState,
+  ) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,7 +262,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                 const Icon(Icons.shopping_cart, color: AppColors.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
-                  'Keranjang (${_cart.length})',
+                  'Keranjang (${cartState.items.length})',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -273,13 +277,13 @@ class _TransactionScreenState extends State<TransactionScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            itemCount: _cart.length,
+            itemCount: cartState.items.length,
             itemBuilder: (context, index) =>
-                _buildCartItem(_cart[index], index),
+                _buildCartItem(cartState.items[index]),
           ),
           const SizedBox(height: AppSpacing.md),
           // Summary
-          _buildSummary(),
+          _buildSummary(cartState),
           const SizedBox(height: AppSpacing.md),
           // Payment Method
           Padding(
@@ -287,9 +291,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
             child: PillSelector<String>(
               label: 'Metode Pembayaran',
               items: const ['CASH', 'TRANSFER', 'QRIS'],
-              selectedItem: _selectedPayment,
+              selectedItem: cartState.paymentMethod,
               itemLabel: (item) => item,
-              onSelected: (item) => setState(() => _selectedPayment = item),
+              onSelected: (item) =>
+                  ref.read(cartProvider.notifier).setPaymentMethod(item),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -319,6 +324,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
+                  onChanged: (value) =>
+                      ref.read(cartProvider.notifier).setNotes(value),
                 ),
               ],
             ),
@@ -333,7 +340,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   child: CustomButton(
                     text: 'Batal',
                     variant: ButtonVariant.secondary,
-                    onPressed: () => setState(() => _cart.clear()),
+                    onPressed: () {
+                      ref.read(cartProvider.notifier).clearCart();
+                      _notesController.clear();
+                    },
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -342,12 +352,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   child: CustomButton(
                     text: 'Selesaikan',
                     icon: Icons.check,
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Transaksi berhasil!')),
-                      );
-                      setState(() => _cart.clear());
-                    },
+                    isLoading: transactionState.isLoading,
+                    onPressed: () => _completeTransaction(cartState),
                   ),
                 ),
               ],
@@ -359,8 +365,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  Widget _buildCartItem(Map<String, dynamic> item, int index) {
-    final subtotal = (item['price'] as int) * (item['quantity'] as int);
+  Widget _buildCartItem(CartItem item) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -377,7 +382,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             children: [
               Expanded(
                 child: Text(
-                  item['name'],
+                  item.product.name,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -387,7 +392,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
-                onPressed: () => setState(() => _cart.removeAt(index)),
+                onPressed: () =>
+                    ref.read(cartProvider.notifier).removeItem(item.product.id),
                 color: AppColors.error,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -395,7 +401,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ],
           ),
           Text(
-            'Rp ${_formatNumber(item['price'])} x ${item['quantity']}',
+            'Rp ${_formatNumber(item.unitPrice)} x ${item.quantity}',
             style: const TextStyle(fontSize: 14, color: AppColors.textGray),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -406,14 +412,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
                 children: [
                   _buildQuantityButton(
                     Icons.remove,
-                    () => _updateQuantity(index, -1),
+                    () => ref
+                        .read(cartProvider.notifier)
+                        .decrementQuantity(item.product.id),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
                     ),
                     child: Text(
-                      '${item['quantity']}',
+                      '${item.quantity}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -422,12 +430,14 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   _buildQuantityButton(
                     Icons.add,
-                    () => _updateQuantity(index, 1),
+                    () => ref
+                        .read(cartProvider.notifier)
+                        .incrementQuantity(item.product.id),
                   ),
                 ],
               ),
               Text(
-                'Rp ${_formatNumber(subtotal)}',
+                'Rp ${_formatNumber(item.subtotal)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -456,7 +466,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     );
   }
 
-  Widget _buildSummary() {
+  Widget _buildSummary(CartState cartState) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -467,11 +477,11 @@ class _TransactionScreenState extends State<TransactionScreen> {
       ),
       child: Column(
         children: [
-          _buildSummaryRow('Subtotal', _subtotal),
+          _buildSummaryRow('Subtotal', cartState.subtotal),
           const SizedBox(height: AppSpacing.xs),
-          _buildSummaryRow('Diskon', 0),
+          _buildSummaryRow('Diskon', cartState.discountAmount),
           const Divider(height: AppSpacing.md),
-          _buildSummaryRow('Total', _subtotal, isTotal: true),
+          _buildSummaryRow('Total', cartState.total, isTotal: true),
         ],
       ),
     );
@@ -499,6 +509,38 @@ class _TransactionScreenState extends State<TransactionScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _completeTransaction(CartState cartState) async {
+    if (cartState.items.isEmpty) return;
+
+    // Real transaction with Supabase
+    final transaction = await ref
+        .read(transactionListProvider.notifier)
+        .createTransaction(cartState);
+
+    if (transaction != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Transaksi berhasil! No: ${transaction.transactionNumber}',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      ref.read(cartProvider.notifier).clearCart();
+      _notesController.clear();
+      // Invalidate stream to refresh products (stock updated)
+      ref.invalidate(productsStreamProvider);
+    } else if (mounted) {
+      final error = ref.read(transactionListProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal: ${error ?? 'Unknown error'}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   String _formatNumber(int number) {

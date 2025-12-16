@@ -2,6 +2,10 @@ import 'package:posfelix/data/models/models.dart';
 
 /// Product Repository Interface
 abstract class ProductRepository {
+  // ============================================
+  // FUTURE METHODS (One-time fetch)
+  // ============================================
+
   /// Get all products with optional filters
   Future<List<ProductModel>> getProducts({
     String? categoryId,
@@ -40,4 +44,25 @@ abstract class ProductRepository {
 
   /// Get all brands
   Future<List<BrandModel>> getBrands();
+
+  // ============================================
+  // STREAM METHODS (Real-time updates)
+  // ============================================
+
+  /// Stream all products with real-time updates
+  /// Emits new list whenever products table changes
+  Stream<List<ProductModel>> getProductsStream({
+    String? categoryId,
+    String? brandId,
+    bool activeOnly = true,
+  });
+
+  /// Stream single product with real-time updates
+  Stream<ProductModel?> getProductStream(String id);
+
+  /// Stream all categories with real-time updates
+  Stream<List<CategoryModel>> getCategoriesStream();
+
+  /// Stream all brands with real-time updates
+  Stream<List<BrandModel>> getBrandsStream();
 }

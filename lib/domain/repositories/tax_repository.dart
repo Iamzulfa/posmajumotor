@@ -2,6 +2,10 @@ import 'package:posfelix/data/models/models.dart';
 
 /// Tax Repository Interface
 abstract class TaxRepository {
+  // ============================================
+  // FUTURE METHODS (One-time fetch)
+  // ============================================
+
   /// Get tax payment for specific period
   Future<TaxPaymentModel?> getTaxPayment({
     required int month,
@@ -26,6 +30,25 @@ abstract class TaxRepository {
     required int month,
     required int year,
   });
+
+  // ============================================
+  // STREAM METHODS (Real-time updates)
+  // ============================================
+
+  /// Stream tax calculation with real-time updates
+  Stream<TaxCalculation> calculateTaxStream({
+    required int month,
+    required int year,
+  });
+
+  /// Stream profit/loss report with real-time updates
+  Stream<ProfitLossReport> getProfitLossReportStream({
+    required int month,
+    required int year,
+  });
+
+  /// Stream all tax payments with real-time updates
+  Stream<List<TaxPaymentModel>> getTaxPaymentsStream({int? year, int? limit});
 }
 
 /// Tax calculation result

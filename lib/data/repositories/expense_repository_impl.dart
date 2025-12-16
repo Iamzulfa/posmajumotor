@@ -230,4 +230,111 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       rethrow;
     }
   }
+
+  // ============================================
+  // STREAM METHODS (Real-time updates)
+  // ============================================
+
+  @override
+  Stream<List<ExpenseModel>> getExpensesStream({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? category,
+    int? limit,
+  }) {
+    try {
+      return _client
+          .from('expenses')
+          .stream(primaryKey: ['id'])
+          .map((data) {
+            var expenses = data
+                .map((json) => ExpenseModel.fromJson(json))
+                .toList();
+
+            // Apply filters
+            if (startDate != null) {
+              expenses = expenses
+                  .where(
+                    (e) =>
+                        e.expenseDate.isAfter(startDate) ||
+                        e.expenseDate.isAtSameMomentAs(startDate),
+                  )
+                  .toList();
+            }
+            if (endDate != null) {
+              expenses = expenses
+                  .where(
+                    (e) =>
+                        e.expenseDate.isBefore(endDate) ||
+                        e.expenseDate.isAtSameMomentAs(endDate),
+                  )
+                  .toList();
+            }
+            if (category != null) {
+              expenses = expenses.where((e) => e.category == category).toList();
+            }
+
+            // Sort by expense_date descending
+            expenses.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+
+            // Apply limit
+            if (limit != null && expenses.length > limit) {
+              expenses = expenses.take(limit).toList();
+            }
+
+            return expenses;
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming expenses', error);
+          });
+    } catch (e) {
+      AppLogger.error('Error setting up expenses stream', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<List<ExpenseModel>> getTodayExpensesStream() {
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return getExpensesStream(startDate: startOfDay, endDate: endOfDay);
+  }
+
+  @override
+  Stream<Map<String, int>> getExpenseSummaryByCategoryStream({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return getExpensesStream(startDate: startDate, endDate: endDate)
+        .map((expenses) {
+          final Map<String, int> summary = {};
+
+          for (final expense in expenses) {
+            summary[expense.category] =
+                (summary[expense.category] ?? 0) + expense.amount;
+          }
+
+          return summary;
+        })
+        .handleError((error) {
+          AppLogger.error('Error streaming expense summary', error);
+        });
+  }
+
+  @override
+  Stream<int> getTotalExpensesStream({DateTime? startDate, DateTime? endDate}) {
+    return getExpensesStream(startDate: startDate, endDate: endDate)
+        .map((expenses) {
+          int total = 0;
+          for (final expense in expenses) {
+            total += expense.amount;
+          }
+          return total;
+        })
+        .handleError((error) {
+          AppLogger.error('Error streaming total expenses', error);
+        });
+  }
 }

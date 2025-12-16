@@ -4,83 +4,93 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
 import '../../../../config/routes/app_routes.dart';
-import '../../../../config/constants/supabase_config.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/dashboard_provider.dart';
 import '../../../providers/auth_provider.dart';
 
-class DashboardScreen extends ConsumerStatefulWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
-  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch real-time stream
+    final dashboardAsync = ref.watch(dashboardStreamProvider);
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  @override
-  void initState() {
-    super.initState();
-    if (SupabaseConfig.isConfigured) {
-      Future.microtask(() {
-        ref.read(dashboardProvider.notifier).loadDashboardData();
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dashboardState = ref.watch(dashboardProvider);
-    final isOnline = SupabaseConfig.isConfigured;
+    final syncStatus = dashboardAsync.when(
+      data: (_) => SyncStatus.online,
+      loading: () => SyncStatus.syncing,
+      error: (_, __) => SyncStatus.offline,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: dashboardState.isLoading
-            ? const LoadingWidget()
-            : RefreshIndicator(
-                onRefresh: () async {
-                  if (isOnline) {
-                    await ref
-                        .read(dashboardProvider.notifier)
-                        .loadDashboardData();
-                  }
-                },
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(context, isOnline),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildProfitCard(dashboardState, isOnline),
-                            const SizedBox(height: AppSpacing.md),
-                            _buildTaxIndicator(dashboardState, isOnline),
-                            const SizedBox(height: AppSpacing.md),
-                            _buildQuickStats(dashboardState, isOnline),
-                            const SizedBox(height: AppSpacing.lg),
-                            _buildTrendChart(),
-                            const SizedBox(height: AppSpacing.lg),
-                            _buildTierBreakdown(dashboardState, isOnline),
-                            const SizedBox(height: AppSpacing.lg),
-                          ],
-                        ),
-                      ),
-                    ],
+        child: dashboardAsync.when(
+          data: (dashboardState) => RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(dashboardStreamProvider);
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, ref, syncStatus),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildProfitCard(dashboardState),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildTaxIndicator(dashboardState),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildQuickStats(dashboardState),
+                        const SizedBox(height: AppSpacing.lg),
+                        _buildTrendChart(),
+                        const SizedBox(height: AppSpacing.lg),
+                        _buildTierBreakdown(dashboardState),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
+            ),
+          ),
+          loading: () => const LoadingWidget(),
+          error: (error, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppColors.error,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text('$error', style: const TextStyle(color: AppColors.error)),
+                const SizedBox(height: AppSpacing.md),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(dashboardStreamProvider),
+                  child: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isOnline) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    SyncStatus syncStatus,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -113,10 +123,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               IconButton(
                 icon: const Icon(Icons.logout),
                 onPressed: () async {
-                  if (isOnline) {
-                    await ref.read(authProvider.notifier).signOut();
-                  }
-                  if (mounted) context.go(AppRoutes.login);
+                  await ref.read(authProvider.notifier).signOut();
+                  if (context.mounted) context.go(AppRoutes.login);
                 },
                 color: AppColors.textGray,
                 tooltip: 'Logout',
@@ -125,8 +133,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
           SyncStatusWidget(
-            status: isOnline ? SyncStatus.online : SyncStatus.offline,
-            lastSyncTime: isOnline ? 'Real-time' : 'Offline mode',
+            status: syncStatus,
+            lastSyncTime: syncStatus == SyncStatus.online
+                ? 'Real-time'
+                : 'Syncing...',
           ),
         ],
       ),
@@ -158,11 +168,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  Widget _buildProfitCard(DashboardState state, bool isOnline) {
-    final profit = isOnline ? state.todayProfit : 2450000;
-    final omset = isOnline ? state.todayOmset : 8500000;
-    final hpp = isOnline ? state.todayHpp : 5200000;
-    final expenses = isOnline ? state.todayExpenses : 850000;
+  Widget _buildProfitCard(DashboardState state) {
+    final profit = state.todayProfit;
+    final omset = state.todayOmset;
+    final hpp = state.todayHpp;
+    final expenses = state.todayExpenses;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -233,9 +243,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildTaxIndicator(DashboardState state, bool isOnline) {
-    final taxAmount = isOnline ? state.taxAmount : 42500;
-    final monthlyOmset = isOnline ? state.monthlyOmset : 8500000;
+  Widget _buildTaxIndicator(DashboardState state) {
+    final taxAmount = state.taxAmount;
+    final monthlyOmset = state.monthlyOmset;
     final targetTax = (monthlyOmset * 0.005).round();
     final progress = targetTax > 0
         ? (taxAmount / targetTax).clamp(0.0, 1.0)
@@ -319,11 +329,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickStats(DashboardState state, bool isOnline) {
-    final trxCount = isOnline ? state.todayTransactionCount : 24;
-    final avgTrx = isOnline ? state.todayAverageTransaction : 354000;
-    final expenses = isOnline ? state.todayExpenses : 850000;
-    final margin = isOnline ? state.marginPercent : 28.8;
+  Widget _buildQuickStats(DashboardState state) {
+    final trxCount = state.todayTransactionCount;
+    final avgTrx = state.todayAverageTransaction;
+    final expenses = state.todayExpenses;
+    final margin = state.marginPercent;
 
     return Column(
       children: [
@@ -505,8 +515,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildTierBreakdown(DashboardState state, bool isOnline) {
-    final tierData = isOnline && state.tierBreakdown.isNotEmpty
+  Widget _buildTierBreakdown(DashboardState state) {
+    final tierData = state.tierBreakdown.isNotEmpty
         ? state.tierBreakdown
         : null;
 

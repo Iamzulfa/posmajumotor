@@ -1,77 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/custom_button.dart';
+import '../../../providers/tax_provider.dart';
+import '../../../providers/dashboard_provider.dart' show TaxPeriod;
 
-class TaxCenterScreen extends StatefulWidget {
+class TaxCenterScreen extends ConsumerStatefulWidget {
   const TaxCenterScreen({super.key});
 
   @override
-  State<TaxCenterScreen> createState() => _TaxCenterScreenState();
+  ConsumerState<TaxCenterScreen> createState() => _TaxCenterScreenState();
 }
 
-class _TaxCenterScreenState extends State<TaxCenterScreen>
+class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedMonth = 'Desember 2025';
-
-  // Track expanded tiers
   final Set<String> _expandedTiers = {};
-
-  // Tier data with details
-  final List<Map<String, dynamic>> _tierData = [
-    {
-      'tier': 'Orang Umum',
-      'omset': 32000000,
-      'hpp': 19200000,
-      'profit': 12800000,
-      'margin': 40.0,
-      'transactions': 120,
-    },
-    {
-      'tier': 'Bengkel',
-      'omset': 28000000,
-      'hpp': 18200000,
-      'profit': 9800000,
-      'margin': 35.0,
-      'transactions': 85,
-    },
-    {
-      'tier': 'Grossir',
-      'omset': 25000000,
-      'hpp': 17500000,
-      'profit': 7500000,
-      'margin': 30.0,
-      'transactions': 42,
-    },
-  ];
-
-  // Payment history data
-  final List<Map<String, dynamic>> _paymentHistory = [
-    {
-      'month': 'November 2024',
-      'omset': 78000000,
-      'tax': 390000,
-      'status': 'paid',
-      'paidDate': '15 Des 2024',
-    },
-    {
-      'month': 'Oktober 2024',
-      'omset': 72000000,
-      'tax': 360000,
-      'status': 'paid',
-      'paidDate': '14 Nov 2024',
-    },
-    {
-      'month': 'September 2024',
-      'omset': 68000000,
-      'tax': 340000,
-      'status': 'paid',
-      'paidDate': '12 Okt 2024',
-    },
-  ];
 
   @override
   void initState() {
@@ -87,21 +34,42 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final taxState = ref.watch(taxCenterProvider);
+    final period = TaxPeriod(
+      month: taxState.selectedMonth,
+      year: taxState.selectedYear,
+    );
+
+    // Watch real-time streams
+    final taxCalcAsync = ref.watch(taxCalculationStreamProvider(period));
+    final profitLossAsync = ref.watch(profitLossReportStreamProvider(period));
+
+    final syncStatus = taxCalcAsync.when(
+      data: (_) => SyncStatus.online,
+      loading: () => SyncStatus.syncing,
+      error: (_, __) => SyncStatus.offline,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
-            const AppHeader(
+            AppHeader(
               title: 'Tax Center',
-              syncStatus: SyncStatus.online,
-              lastSyncTime: '2 min ago',
+              syncStatus: syncStatus,
+              lastSyncTime: syncStatus == SyncStatus.online
+                  ? 'Real-time'
+                  : 'Syncing...',
             ),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [_buildLaporanTab(), _buildKalkulatorTab()],
+                children: [
+                  _buildLaporanTab(taxState, taxCalcAsync, profitLossAsync),
+                  _buildKalkulatorTab(taxState, taxCalcAsync),
+                ],
               ),
             ),
           ],
@@ -135,33 +103,55 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
     );
   }
 
-  Widget _buildLaporanTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildMonthSelector(),
-          const SizedBox(height: AppSpacing.md),
-          _buildProfitLossCard(),
-          const SizedBox(height: AppSpacing.md),
-          _buildTierBreakdown(),
-          const SizedBox(height: AppSpacing.lg),
-          CustomButton(
-            text: 'Export PDF',
-            icon: Icons.picture_as_pdf,
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Generating PDF...')),
-              );
-            },
-          ),
-        ],
+  Widget _buildLaporanTab(
+    TaxCenterState taxState,
+    AsyncValue taxCalcAsync,
+    AsyncValue profitLossAsync,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        final period = TaxPeriod(
+          month: taxState.selectedMonth,
+          year: taxState.selectedYear,
+        );
+        ref.invalidate(taxCalculationStreamProvider(period));
+        ref.invalidate(profitLossReportStreamProvider(period));
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildMonthSelector(taxState),
+            const SizedBox(height: AppSpacing.md),
+            _buildProfitLossCard(taxState, profitLossAsync),
+            const SizedBox(height: AppSpacing.md),
+            _buildTierBreakdown(taxState, profitLossAsync),
+            const SizedBox(height: AppSpacing.lg),
+            CustomButton(
+              text: 'Export PDF',
+              icon: Icons.picture_as_pdf,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Generating PDF...')),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMonthSelector() {
+  Widget _buildMonthSelector(TaxCenterState taxState) {
+    final months = <String>[];
+    final now = DateTime.now();
+    for (int i = 0; i < 12; i++) {
+      final date = DateTime(now.year, now.month - i, 1);
+      months.add(_getMonthName(date.month, date.year));
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       decoration: BoxDecoration(
@@ -171,20 +161,57 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: _selectedMonth,
+          value: taxState.periodString,
           isExpanded: true,
-          items: [
-            'November 2025',
-            'Desember 2025',
-          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-          onChanged: (value) =>
-              setState(() => _selectedMonth = value ?? _selectedMonth),
+          items: months
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              final parts = value.split(' ');
+              final month = _getMonthNumber(parts[0]);
+              final year = int.parse(parts[1]);
+              ref
+                  .read(taxCenterProvider.notifier)
+                  .setSelectedPeriod(month, year);
+            }
+          },
         ),
       ),
     );
   }
 
-  Widget _buildProfitLossCard() {
+  Widget _buildProfitLossCard(
+    TaxCenterState taxState,
+    AsyncValue profitLossAsync,
+  ) {
+    return profitLossAsync.when(
+      data: (report) {
+        final omset = report.totalOmset;
+        final hpp = report.totalHpp;
+        final expenses = report.totalExpenses;
+        final profit = report.netProfit;
+        final margin = omset > 0 ? (profit / omset) * 100 : 0.0;
+        return _buildProfitLossCardContent(
+          omset,
+          hpp,
+          expenses,
+          profit,
+          margin,
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text('Error: $error')),
+    );
+  }
+
+  Widget _buildProfitLossCardContent(
+    int omset,
+    int hpp,
+    int expenses,
+    int profit,
+    double margin,
+  ) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -204,33 +231,35 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _buildReportRow('Total Omset', 85000000, isPositive: true),
-          _buildReportRow('Total HPP', 52000000, isNegative: true),
-          _buildReportRow('Total Pengeluaran', 8500000, isNegative: true),
+          _buildReportRow('Total Omset', omset, isPositive: true),
+          _buildReportRow('Total HPP', hpp, isNegative: true),
+          _buildReportRow('Total Pengeluaran', expenses, isNegative: true),
           const Divider(height: AppSpacing.lg),
-          _buildReportRow('Profit Bersih', 24500000, isTotal: true),
+          _buildReportRow('Profit Bersih', profit, isTotal: true),
           const SizedBox(height: AppSpacing.sm),
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.1),
+              color: profit >= 0
+                  ? AppColors.success.withValues(alpha: 0.1)
+                  : AppColors.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.trending_up,
-                  color: AppColors.success,
+                Icon(
+                  profit >= 0 ? Icons.trending_up : Icons.trending_down,
+                  color: profit >= 0 ? AppColors.success : AppColors.error,
                   size: 16,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  'Margin: 28.8%',
+                  'Margin: ${margin.toStringAsFixed(1)}%',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.success,
+                    color: profit >= 0 ? AppColors.success : AppColors.error,
                   ),
                 ),
               ],
@@ -251,7 +280,9 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
     Color amountColor = AppColors.textDark;
     if (isPositive) amountColor = AppColors.success;
     if (isNegative) amountColor = AppColors.error;
-    if (isTotal) amountColor = AppColors.primary;
+    if (isTotal) {
+      amountColor = amount >= 0 ? AppColors.primary : AppColors.error;
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -267,7 +298,7 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
             ),
           ),
           Text(
-            '${isNegative ? '-' : ''}Rp ${_formatNumber(amount)}',
+            '${isNegative ? '-' : ''}Rp ${_formatNumber(amount.abs())}',
             style: TextStyle(
               fontSize: isTotal ? 18 : 14,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
@@ -279,7 +310,38 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
     );
   }
 
-  Widget _buildTierBreakdown() {
+  Widget _buildTierBreakdown(
+    TaxCenterState taxState,
+    AsyncValue profitLossAsync,
+  ) {
+    return profitLossAsync.when(
+      data: (report) {
+        final tierData = report.tierBreakdown.entries
+            .map(
+              (e) => {
+                'tier': _getTierDisplayName(e.key),
+                'omset': e.value.omset,
+                'hpp': e.value.hpp,
+                'profit': e.value.profit,
+                'margin': e.value.omset > 0
+                    ? ((e.value.profit / e.value.omset) * 100)
+                    : 0.0,
+                'transactions': e.value.transactionCount,
+              },
+            )
+            .toList();
+        return _buildTierBreakdownContent(tierData);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text('Error: $error')),
+    );
+  }
+
+  Widget _buildTierBreakdownContent(List<Map<String, dynamic>> tierData) {
+    if (tierData.isEmpty) {
+      return const Center(child: Text('Tidak ada data'));
+    }
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -299,7 +361,7 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          ..._tierData.map((tier) => _buildExpandableTierRow(tier)),
+          ...tierData.map((tier) => _buildExpandableTierRow(tier)),
         ],
       ),
     );
@@ -322,15 +384,11 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
       child: Column(
         children: [
           InkWell(
-            onTap: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedTiers.remove(tier);
-                } else {
-                  _expandedTiers.add(tier);
-                }
-              });
-            },
+            onTap: () => setState(
+              () => isExpanded
+                  ? _expandedTiers.remove(tier)
+                  : _expandedTiers.add(tier),
+            ),
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.sm),
@@ -416,7 +474,7 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          'Margin: ${tierData['margin'].toStringAsFixed(1)}%',
+                          'Margin: ${(tierData['margin'] as num).toStringAsFixed(1)}%',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -462,99 +520,127 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
     );
   }
 
-  Color _getTierColor(String tier) {
-    switch (tier) {
-      case 'Orang Umum':
-        return AppColors.info;
-      case 'Bengkel':
-        return AppColors.warning;
-      case 'Grossir':
-        return AppColors.success;
-      default:
-        return AppColors.textGray;
-    }
+  Widget _buildKalkulatorTab(TaxCenterState taxState, AsyncValue taxCalcAsync) {
+    return taxCalcAsync.when(
+      data: (calc) {
+        final omset = calc.totalOmset;
+        final taxAmount = calc.taxAmount;
+        final isPaid = calc.isPaid;
+        return _buildKalkulatorContent(taxState, omset, taxAmount, isPaid);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text('Error: $error')),
+    );
   }
 
-  Widget _buildKalkulatorTab() {
-    const omset = 85000000;
-    final taxAmount = (omset * 0.005).toInt();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildMonthSelector(),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'Kalkulator PPh Final',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
+  Widget _buildKalkulatorContent(
+    TaxCenterState taxState,
+    int omset,
+    int taxAmount,
+    bool isPaid,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        final period = TaxPeriod(
+          month: taxState.selectedMonth,
+          year: taxState.selectedYear,
+        );
+        ref.invalidate(taxCalculationStreamProvider(period));
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildMonthSelector(taxState),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'Kalkulator PPh Final',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _buildCalcRow('Total Omset Bulan Ini', omset),
-                const SizedBox(height: AppSpacing.sm),
-                _buildCalcRow('Tarif PPh Final', null, suffix: '0.5%'),
-                const Divider(height: AppSpacing.lg),
-                _buildCalcRow('Estimasi Pajak', taxAmount, isTotal: true),
-                const SizedBox(height: AppSpacing.lg),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, color: AppColors.warning),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Expanded(
-                        child: Text(
-                          'Status: Belum Dibayar',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.warning,
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildCalcRow('Total Omset Bulan Ini', omset),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildCalcRow('Tarif PPh Final', null, suffix: '0.5%'),
+                  const Divider(height: AppSpacing.lg),
+                  _buildCalcRow('Estimasi Pajak', taxAmount, isTotal: true),
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: isPaid
+                          ? AppColors.success.withValues(alpha: 0.1)
+                          : AppColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isPaid ? Icons.check_circle : Icons.info_outline,
+                          color: isPaid ? AppColors.success : AppColors.warning,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Status: ${isPaid ? 'Sudah Dibayar' : 'Belum Dibayar'}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: isPaid
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                CustomButton(
-                  text: 'Tandai Sudah Bayar',
-                  icon: Icons.check_circle,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Pajak ditandai sudah dibayar'),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.lg),
+                  if (!isPaid)
+                    CustomButton(
+                      text: 'Tandai Sudah Bayar',
+                      icon: Icons.check_circle,
+                      onPressed: () => _markAsPaid(),
+                    ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildPaymentHistory(),
-        ],
+            const SizedBox(height: AppSpacing.lg),
+            _buildPaymentHistory(taxState),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPaymentHistory() {
+  Widget _buildPaymentHistory(TaxCenterState taxState) {
+    final history = taxState.paymentHistory.isNotEmpty
+        ? taxState.paymentHistory
+              .map(
+                (p) => {
+                  'month': p.periodString,
+                  'omset': p.totalOmset,
+                  'tax': p.taxAmount,
+                  'status': p.isPaid ? 'paid' : 'pending',
+                  'paidDate': p.formattedPaidDate,
+                },
+              )
+              .toList()
+        : <Map<String, dynamic>>[];
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -565,24 +651,16 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Riwayat Pembayaran Pajak',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textDark,
-                ),
-              ),
-              TextButton(onPressed: () {}, child: const Text('Lihat Semua')),
-            ],
+          const Text(
+            'Riwayat Pembayaran Pajak',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          ..._paymentHistory.map(
-            (payment) => _buildPaymentHistoryItem(payment),
-          ),
+          ...history.map((payment) => _buildPaymentHistoryItem(payment)),
         ],
       ),
     );
@@ -590,7 +668,6 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
 
   Widget _buildPaymentHistoryItem(Map<String, dynamic> payment) {
     final isPaid = payment['status'] == 'paid';
-
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -634,7 +711,6 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
                     color: AppColors.textDark,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   'Omset: Rp ${_formatNumber(payment['omset'])}',
                   style: const TextStyle(
@@ -664,7 +740,6 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
                   color: isPaid ? AppColors.success : AppColors.warning,
                 ),
               ),
-              const SizedBox(height: 2),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
@@ -719,6 +794,80 @@ class _TaxCenterScreenState extends State<TaxCenterScreen>
         ),
       ],
     );
+  }
+
+  Future<void> _markAsPaid() async {
+    await ref.read(taxCenterProvider.notifier).markAsPaid();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pajak ditandai sudah dibayar'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  String _getTierDisplayName(String tier) {
+    switch (tier) {
+      case 'UMUM':
+        return 'Orang Umum';
+      case 'BENGKEL':
+        return 'Bengkel';
+      case 'GROSSIR':
+        return 'Grossir';
+      default:
+        return tier;
+    }
+  }
+
+  Color _getTierColor(String tier) {
+    switch (tier) {
+      case 'Orang Umum':
+        return AppColors.info;
+      case 'Bengkel':
+        return AppColors.warning;
+      case 'Grossir':
+        return AppColors.success;
+      default:
+        return AppColors.textGray;
+    }
+  }
+
+  String _getMonthName(int month, int year) {
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return '${months[month - 1]} $year';
+  }
+
+  int _getMonthNumber(String monthName) {
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return months.indexOf(monthName) + 1;
   }
 
   String _formatNumber(int number) {

@@ -71,4 +71,9 @@ void _setupRepositories() {
   getIt.registerLazySingleton<TaxRepository>(
     () => TaxRepositoryImpl(getIt<SupabaseClient>()),
   );
+
+  // Dashboard Repository
+  getIt.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepositoryImpl(getIt<SupabaseClient>()),
+  );
 }

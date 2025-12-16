@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
-import '../../../../config/constants/supabase_config.dart';
 import '../../../../data/models/models.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/product_provider.dart';
+import 'product_form_modal.dart';
+import 'delete_product_dialog.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -18,57 +19,8 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
-
-  // Mock data for offline mode
-  final List<Map<String, dynamic>> _mockProducts = [
-    {
-      'name': 'Ban Michelin 90/90 Ring 14',
-      'category': 'Ban',
-      'brand': 'Michelin',
-      'stock': 15,
-      'margin': 35,
-      'hpp': 300000,
-      'price': 450000,
-    },
-    {
-      'name': 'Oli Shell Helix 1L',
-      'category': 'Oli',
-      'brand': 'Shell',
-      'stock': 32,
-      'margin': 28,
-      'hpp': 65000,
-      'price': 85000,
-    },
-    {
-      'name': 'Rantai Motor 415H',
-      'category': 'Rantai',
-      'brand': 'DID',
-      'stock': 5,
-      'margin': 40,
-      'hpp': 150000,
-      'price': 210000,
-    },
-    {
-      'name': 'Gearset Supra X 125',
-      'category': 'Gearset',
-      'brand': 'Indopart',
-      'stock': 8,
-      'margin': 25,
-      'hpp': 420000,
-      'price': 530000,
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    // Load products on init if Supabase is configured
-    if (SupabaseConfig.isConfigured) {
-      Future.microtask(() {
-        ref.read(productListProvider.notifier).loadProducts();
-      });
-    }
-  }
+  String _searchQuery = '';
+  String? _selectedCategoryId;
 
   @override
   void dispose() {
@@ -78,183 +30,233 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final productState = ref.watch(productListProvider);
-    final isOnline = SupabaseConfig.isConfigured;
+    // Watch real-time streams
+    final productsAsync = ref.watch(productsStreamProvider);
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(isOnline),
-            _buildSearchAndFilter(productState),
-            _buildResultCount(productState),
-            Expanded(child: _buildProductList(productState, isOnline)),
+            _buildHeader(productsAsync),
+            _buildSearchAndFilter(categoriesAsync),
+            _buildResultCount(productsAsync),
+            Expanded(child: _buildProductList(productsAsync)),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Open add product dialog
-        },
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddProductDialog(context),
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Tambah', style: TextStyle(color: Colors.white)),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildHeader(bool isOnline) {
+  Widget _buildHeader(AsyncValue<List<ProductModel>> productsAsync) {
+    final syncStatus = productsAsync.when(
+      data: (_) => SyncStatus.online,
+      loading: () => SyncStatus.syncing,
+      error: (_, __) => SyncStatus.offline,
+    );
+
+    final lastSyncText = productsAsync.when(
+      data: (_) => 'Real-time',
+      loading: () => 'Syncing...',
+      error: (_, __) => 'Error',
+    );
+
     return AppHeader(
       title: 'Inventory',
-      syncStatus: isOnline ? SyncStatus.online : SyncStatus.offline,
-      lastSyncTime: isOnline ? 'Real-time' : 'Offline mode',
+      syncStatus: syncStatus,
+      lastSyncTime: lastSyncText,
     );
   }
 
-  Widget _buildSearchAndFilter(ProductListState state) {
-    final categories = ['Semua', ...state.categories.map((c) => c.name)];
-    final selectedCategoryName = state.selectedCategoryId != null
-        ? state.categories
-              .firstWhere(
-                (c) => c.id == state.selectedCategoryId,
-                orElse: () => const CategoryModel(id: '', name: 'Semua'),
-              )
-              .name
-        : 'Semua';
+  Widget _buildSearchAndFilter(
+    AsyncValue<List<CategoryModel>> categoriesAsync,
+  ) {
+    return categoriesAsync.when(
+      data: (categories) {
+        final categoryNames = ['Semua', ...categories.map((c) => c.name)];
+        final selectedCategoryName = _selectedCategoryId != null
+            ? categories
+                  .firstWhere(
+                    (c) => c.id == _selectedCategoryId,
+                    orElse: () => const CategoryModel(id: '', name: 'Semua'),
+                  )
+                  .name
+            : 'Semua';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Cari produk...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: AppColors.background,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Cari produk...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() => _searchQuery = value.toLowerCase());
+                  },
                 ),
-                border: OutlineInputBorder(
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  borderSide: BorderSide.none,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedCategoryName,
+                    items: categoryNames
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        if (value == 'Semua') {
+                          _selectedCategoryId = null;
+                        } else {
+                          final category = categories.firstWhere(
+                            (c) => c.name == value,
+                          );
+                          _selectedCategoryId = category.id;
+                        }
+                      });
+                    },
+                  ),
                 ),
               ),
-              onChanged: (value) {
-                ref.read(productListProvider.notifier).setSearchQuery(value);
-              },
-            ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedCategoryName,
-                items: categories
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (value) {
-                  if (value == 'Semua') {
-                    ref
-                        .read(productListProvider.notifier)
-                        .setSelectedCategory(null);
-                  } else {
-                    final category = state.categories.firstWhere(
-                      (c) => c.name == value,
-                    );
-                    ref
-                        .read(productListProvider.notifier)
-                        .setSelectedCategory(category.id);
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        child: LinearProgressIndicator(),
       ),
-    );
-  }
-
-  Widget _buildResultCount(ProductListState state) {
-    final count = SupabaseConfig.isConfigured
-        ? state.filteredProducts.length
-        : _mockProducts.length;
-
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Align(
-        alignment: Alignment.centerLeft,
+      error: (error, _) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: Text(
-          'Hasil: $count produk',
-          style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+          'Error: $error',
+          style: const TextStyle(color: AppColors.error),
         ),
       ),
     );
   }
 
-  Widget _buildProductList(ProductListState state, bool isOnline) {
-    if (state.isLoading) {
-      return const LoadingWidget();
+  Widget _buildResultCount(AsyncValue<List<ProductModel>> productsAsync) {
+    return productsAsync.when(
+      data: (products) {
+        final filtered = _filterProducts(products);
+        return Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Hasil: ${filtered.length} produk',
+              style: const TextStyle(fontSize: 14, color: AppColors.textGray),
+            ),
+          ),
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Loading...',
+            style: TextStyle(color: AppColors.textGray),
+          ),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  List<ProductModel> _filterProducts(List<ProductModel> products) {
+    var result = products;
+
+    if (_searchQuery.isNotEmpty) {
+      result = result
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(_searchQuery) ||
+                (p.sku?.toLowerCase().contains(_searchQuery) ?? false),
+          )
+          .toList();
     }
 
-    if (state.error != null) {
-      return Center(
+    if (_selectedCategoryId != null) {
+      result = result
+          .where((p) => p.categoryId == _selectedCategoryId)
+          .toList();
+    }
+
+    return result;
+  }
+
+  Widget _buildProductList(AsyncValue<List<ProductModel>> productsAsync) {
+    return productsAsync.when(
+      data: (products) {
+        final filtered = _filterProducts(products);
+
+        if (filtered.isEmpty) {
+          return const Center(
+            child: Text(
+              'Tidak ada produk',
+              style: TextStyle(color: AppColors.textGray),
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(productsStreamProvider);
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            itemCount: filtered.length,
+            itemBuilder: (context, index) => _buildProductCard(filtered[index]),
+          ),
+        );
+      },
+      loading: () => const LoadingWidget(),
+      error: (error, stack) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: AppSpacing.md),
-            Text(state.error!, style: const TextStyle(color: AppColors.error)),
+            Text('$error', style: const TextStyle(color: AppColors.error)),
             const SizedBox(height: AppSpacing.md),
             ElevatedButton(
-              onPressed: () =>
-                  ref.read(productListProvider.notifier).loadProducts(),
+              onPressed: () => ref.invalidate(productsStreamProvider),
               child: const Text('Coba Lagi'),
             ),
           ],
         ),
-      );
-    }
-
-    // Use real data if online, mock data if offline
-    if (isOnline) {
-      final products = state.filteredProducts;
-      if (products.isEmpty) {
-        return const Center(
-          child: Text(
-            'Tidak ada produk',
-            style: TextStyle(color: AppColors.textGray),
-          ),
-        );
-      }
-
-      return ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: products.length,
-        itemBuilder: (context, index) =>
-            _buildProductCardFromModel(products[index]),
-      );
-    } else {
-      // Offline mode with mock data
-      return ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: _mockProducts.length,
-        itemBuilder: (context, index) =>
-            _buildProductCardFromMap(_mockProducts[index]),
-      );
-    }
+      ),
+    );
   }
 
-  Widget _buildProductCardFromModel(ProductModel product) {
+  Widget _buildProductCard(ProductModel product) {
     final margin = product.getMarginPercent('UMUM');
     final marginColor = margin >= 30
         ? AppColors.success
@@ -320,9 +322,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           Row(
             children: [
               TextButton.icon(
-                onPressed: () {
-                  // TODO: Open edit dialog
-                },
+                onPressed: () => _showEditProductDialog(context, product),
                 icon: const Icon(Icons.edit, size: 16),
                 label: const Text('Edit'),
                 style: TextButton.styleFrom(
@@ -336,7 +336,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                onPressed: () => _confirmDelete(product),
+                onPressed: () => _showDeleteDialog(context, product),
                 color: AppColors.error,
                 iconSize: 20,
               ),
@@ -347,116 +347,39 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  Widget _buildProductCardFromMap(Map<String, dynamic> product) {
-    final marginColor = product['margin'] >= 30
-        ? AppColors.success
-        : product['margin'] >= 20
-        ? AppColors.warning
-        : AppColors.error;
-    final stockColor = product['stock'] > 5
-        ? AppColors.success
-        : AppColors.warning;
+  void _showAddProductDialog(BuildContext context) {
+    final categoriesAsync = ref.read(categoriesStreamProvider);
+    final brandsAsync = ref.read(brandsStreamProvider);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            product['name'],
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '${product['category']} | ${product['brand']}',
-            style: const TextStyle(fontSize: 14, color: AppColors.textGray),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Icon(Icons.check_circle, size: 16, color: stockColor),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                'Stok: ${product['stock']}',
-                style: const TextStyle(fontSize: 14, color: AppColors.textDark),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Text(
-                'Margin: ${product['margin']}%',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: marginColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'HPP: Rp ${_formatNumber(product['hpp'])}  |  Jual: Rp ${_formatNumber(product['price'])}',
-            style: const TextStyle(fontSize: 14, color: AppColors.textGray),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Edit'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textGray,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () {},
-                color: AppColors.error,
-                iconSize: 20,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    categoriesAsync.whenData((categories) {
+      brandsAsync.whenData((brands) {
+        if (mounted) {
+          showProductFormModal(context, categories: categories, brands: brands);
+        }
+      });
+    });
   }
 
-  void _confirmDelete(ProductModel product) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Produk'),
-        content: Text('Yakin ingin menghapus "${product.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ref.read(productListProvider.notifier).deleteProduct(product.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
+  void _showEditProductDialog(BuildContext context, ProductModel product) {
+    final categoriesAsync = ref.read(categoriesStreamProvider);
+    final brandsAsync = ref.read(brandsStreamProvider);
+
+    categoriesAsync.whenData((categories) {
+      brandsAsync.whenData((brands) {
+        if (mounted) {
+          showProductFormModal(
+            context,
+            categories: categories,
+            brands: brands,
+            product: product,
+          );
+        }
+      });
+    });
+  }
+
+  void _showDeleteDialog(BuildContext context, ProductModel product) {
+    showDeleteProductDialog(context, product, ref);
   }
 
   String _formatNumber(int number) {

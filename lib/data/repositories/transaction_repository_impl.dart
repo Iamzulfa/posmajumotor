@@ -310,4 +310,154 @@ class TransactionRepositoryImpl implements TransactionRepository {
       rethrow;
     }
   }
+
+  // ============================================
+  // STREAM METHODS (Real-time updates)
+  // ============================================
+
+  @override
+  Stream<List<TransactionModel>> getTransactionsStream({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? tier,
+    int? limit,
+  }) {
+    try {
+      return _client
+          .from('transactions')
+          .stream(primaryKey: ['id'])
+          .map((data) {
+            var transactions = data
+                .map((json) => TransactionModel.fromJson(json))
+                .toList();
+
+            // Apply filters
+            if (startDate != null) {
+              transactions = transactions
+                  .where(
+                    (t) =>
+                        t.createdAt != null && t.createdAt!.isAfter(startDate),
+                  )
+                  .toList();
+            }
+            if (endDate != null) {
+              transactions = transactions
+                  .where(
+                    (t) =>
+                        t.createdAt != null && t.createdAt!.isBefore(endDate),
+                  )
+                  .toList();
+            }
+            if (tier != null) {
+              transactions = transactions.where((t) => t.tier == tier).toList();
+            }
+
+            // Sort by created_at descending
+            transactions.sort((a, b) {
+              if (a.createdAt == null || b.createdAt == null) return 0;
+              return b.createdAt!.compareTo(a.createdAt!);
+            });
+
+            // Apply limit
+            if (limit != null && transactions.length > limit) {
+              transactions = transactions.take(limit).toList();
+            }
+
+            return transactions;
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming transactions', error);
+          });
+    } catch (e) {
+      AppLogger.error('Error setting up transactions stream', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<List<TransactionModel>> getTodayTransactionsStream() {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return getTransactionsStream(startDate: startOfDay, endDate: endOfDay);
+  }
+
+  @override
+  Stream<TransactionSummary> getTransactionSummaryStream({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return getTransactionsStream(startDate: startDate, endDate: endDate)
+        .map((transactions) {
+          // Filter completed transactions
+          final completed = transactions
+              .where((t) => t.paymentStatus == 'COMPLETED')
+              .toList();
+
+          int totalOmset = 0;
+          int totalHpp = 0;
+          int totalProfit = 0;
+
+          for (final t in completed) {
+            totalOmset += t.total;
+            totalHpp += t.totalHpp;
+            totalProfit += t.profit;
+          }
+
+          final count = completed.length;
+          final average = count > 0 ? totalOmset ~/ count : 0;
+
+          return TransactionSummary(
+            totalTransactions: count,
+            totalOmset: totalOmset,
+            totalHpp: totalHpp,
+            totalProfit: totalProfit,
+            averageTransaction: average,
+          );
+        })
+        .handleError((error) {
+          AppLogger.error('Error streaming transaction summary', error);
+        });
+  }
+
+  @override
+  Stream<Map<String, TierSummary>> getTierBreakdownStream({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return getTransactionsStream(startDate: startDate, endDate: endDate)
+        .map((transactions) {
+          // Filter completed transactions
+          final completed = transactions
+              .where((t) => t.paymentStatus == 'COMPLETED')
+              .toList();
+
+          final Map<String, TierSummary> breakdown = {};
+
+          for (final tier in ['UMUM', 'BENGKEL', 'GROSSIR']) {
+            final tierData = completed.where((t) => t.tier == tier).toList();
+
+            int totalOmset = 0;
+            int totalProfit = 0;
+
+            for (final t in tierData) {
+              totalOmset += t.total;
+              totalProfit += t.profit;
+            }
+
+            breakdown[tier] = TierSummary(
+              tier: tier,
+              transactionCount: tierData.length,
+              totalOmset: totalOmset,
+              totalProfit: totalProfit,
+            );
+          }
+
+          return breakdown;
+        })
+        .handleError((error) {
+          AppLogger.error('Error streaming tier breakdown', error);
+        });
+  }
 }
