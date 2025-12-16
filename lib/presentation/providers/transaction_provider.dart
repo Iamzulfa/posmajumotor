@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/transaction_repository.dart';
+import 'package:posfelix/core/services/connectivity_service.dart';
+import 'package:posfelix/core/services/offline_sync_manager.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'package:posfelix/core/utils/logger.dart';
 import 'cart_provider.dart';
 
 /// Transaction list state
@@ -30,12 +33,17 @@ class TransactionListState {
   }
 }
 
-/// Transaction list notifier
+/// Transaction list notifier with offline support
 class TransactionListNotifier extends StateNotifier<TransactionListState> {
   final TransactionRepository? _repository;
+  final ConnectivityService? _connectivityService;
+  final OfflineSyncManager? _syncManager;
 
-  TransactionListNotifier(this._repository)
-    : super(const TransactionListState());
+  TransactionListNotifier(
+    this._repository,
+    this._connectivityService,
+    this._syncManager,
+  ) : super(const TransactionListState());
 
   Future<void> loadTodayTransactions() async {
     if (_repository == null) return;
@@ -69,10 +77,11 @@ class TransactionListNotifier extends StateNotifier<TransactionListState> {
     }
   }
 
+  /// Create transaction with offline support
+  /// If offline, queues the transaction for later sync
   Future<TransactionModel?> createTransaction(CartState cart) async {
-    if (_repository == null) return null;
-
     state = state.copyWith(isLoading: true, error: null);
+
     try {
       // Convert cart items to transaction items
       final items = cart.items
@@ -91,18 +100,61 @@ class TransactionListNotifier extends StateNotifier<TransactionListState> {
           )
           .toList();
 
-      final transaction = await _repository.createTransaction(
-        tier: cart.tier,
-        paymentMethod: cart.paymentMethod,
-        items: items,
-        notes: cart.notes,
-        discountAmount: cart.discountAmount,
-      );
+      // Check if online
+      final isOnline = _connectivityService?.isOnline ?? true;
 
-      // Reload transactions
-      await loadTodayTransactions();
+      if (isOnline && _repository != null) {
+        // Online mode - create directly
+        final transaction = await _repository.createTransaction(
+          tier: cart.tier,
+          paymentMethod: cart.paymentMethod,
+          items: items,
+          notes: cart.notes,
+          discountAmount: cart.discountAmount,
+        );
 
-      return transaction;
+        // Reload transactions
+        await loadTodayTransactions();
+        return transaction;
+      } else {
+        // Offline mode - queue for later sync
+        if (_syncManager != null) {
+          // Create a temporary transaction model for queuing
+          final tempTransaction = TransactionModel(
+            id: '',
+            transactionNumber:
+                'OFFLINE-${DateTime.now().millisecondsSinceEpoch}',
+            tier: cart.tier,
+            customerName: null,
+            subtotal: cart.subtotal,
+            discountAmount: cart.discountAmount,
+            total: cart.total,
+            totalHpp: cart.totalHpp,
+            profit: cart.totalProfit,
+            paymentMethod: cart.paymentMethod,
+            paymentStatus: 'PENDING',
+            notes: cart.notes,
+            cashierId: null,
+            createdAt: DateTime.now(),
+            items: items,
+          );
+
+          await _syncManager.addToQueue(tempTransaction);
+          AppLogger.info('Transaction queued for offline sync');
+
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Transaction saved offline. Will sync when online.',
+          );
+          return tempTransaction;
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Cannot create transaction offline',
+          );
+          return null;
+        }
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       return null;
@@ -126,13 +178,29 @@ class TransactionListNotifier extends StateNotifier<TransactionListState> {
   }
 }
 
-/// Transaction list provider
+/// Transaction list provider with offline support
 final transactionListProvider =
     StateNotifierProvider<TransactionListNotifier, TransactionListState>((ref) {
-      final repository = SupabaseConfig.isConfigured
-          ? getIt<TransactionRepository>()
-          : null;
-      return TransactionListNotifier(repository);
+      TransactionRepository? repository;
+      ConnectivityService? connectivityService;
+      OfflineSyncManager? syncManager;
+
+      if (SupabaseConfig.isConfigured) {
+        repository = getIt<TransactionRepository>();
+      }
+
+      try {
+        connectivityService = getIt<ConnectivityService>();
+        syncManager = getIt<OfflineSyncManager>();
+      } catch (e) {
+        // Services not registered yet
+      }
+
+      return TransactionListNotifier(
+        repository,
+        connectivityService,
+        syncManager,
+      );
     });
 
 /// Transaction summary provider (for dashboard)

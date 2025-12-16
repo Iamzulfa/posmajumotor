@@ -28,21 +28,64 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     super.dispose();
   }
 
+  /// Combine products with categories and brands data
+  List<ProductModel> _enrichProductsWithRelations(
+    List<ProductModel> products,
+    List<CategoryModel> categories,
+    List<BrandModel> brands,
+  ) {
+    final categoryMap = {for (var c in categories) c.id: c};
+    final brandMap = {for (var b in brands) b.id: b};
+
+    return products.map((product) {
+      return product.copyWith(
+        category: product.categoryId != null
+            ? categoryMap[product.categoryId]
+            : null,
+        brand: product.brandId != null ? brandMap[product.brandId] : null,
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Watch real-time streams
     final productsAsync = ref.watch(productsStreamProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final brandsAsync = ref.watch(brandsStreamProvider);
+
+    // Combine all async data
+    final enrichedProductsAsync = productsAsync.when(
+      data: (products) {
+        return categoriesAsync.when(
+          data: (categories) {
+            return brandsAsync.when(
+              data: (brands) {
+                return AsyncValue.data(
+                  _enrichProductsWithRelations(products, categories, brands),
+                );
+              },
+              loading: () => const AsyncValue<List<ProductModel>>.loading(),
+              error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
+            );
+          },
+          loading: () => const AsyncValue<List<ProductModel>>.loading(),
+          error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
+        );
+      },
+      loading: () => const AsyncValue<List<ProductModel>>.loading(),
+      error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(productsAsync),
+            _buildHeader(enrichedProductsAsync),
             _buildSearchAndFilter(categoriesAsync),
-            _buildResultCount(productsAsync),
-            Expanded(child: _buildProductList(productsAsync)),
+            _buildResultCount(enrichedProductsAsync),
+            Expanded(child: _buildProductList(enrichedProductsAsync)),
           ],
         ),
       ),

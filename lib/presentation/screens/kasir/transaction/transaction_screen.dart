@@ -40,14 +40,68 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     super.dispose();
   }
 
+  /// Combine products with categories and brands data
+  List<ProductModel> _enrichProductsWithRelations(
+    List<ProductModel> products,
+    List<CategoryModel> categories,
+    List<BrandModel> brands,
+  ) {
+    final categoryMap = {for (var c in categories) c.id: c};
+    final brandMap = {for (var b in brands) b.id: b};
+
+    return products.map((product) {
+      return product.copyWith(
+        category: product.categoryId != null
+            ? categoryMap[product.categoryId]
+            : null,
+        brand: product.brandId != null ? brandMap[product.brandId] : null,
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Watch real-time stream
-    final productsAsync = ref.watch(productsStreamProvider);
+    // Watch products - use non-stream provider for now (real-time has issues)
+    // TODO: Switch back to productsStreamProvider once real-time is fixed
+    final productsAsync = ref.watch(productsProvider);
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final brandsAsync = ref.watch(brandsStreamProvider);
     final cartState = ref.watch(cartProvider);
     final transactionState = ref.watch(transactionListProvider);
 
-    final syncStatus = productsAsync.when(
+    // Combine all async data
+    final enrichedProductsAsync = productsAsync.when(
+      data: (products) {
+        return categoriesAsync.when(
+          data: (categories) {
+            return brandsAsync.when(
+              data: (brands) {
+                final enriched = _enrichProductsWithRelations(
+                  products,
+                  categories,
+                  brands,
+                );
+                // Debug: log product count
+                if (enriched.isNotEmpty) {
+                  debugPrint(
+                    'Transaction screen: ${enriched.length} products loaded',
+                  );
+                }
+                return AsyncValue.data(enriched);
+              },
+              loading: () => const AsyncValue<List<ProductModel>>.loading(),
+              error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
+            );
+          },
+          loading: () => const AsyncValue<List<ProductModel>>.loading(),
+          error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
+        );
+      },
+      loading: () => const AsyncValue<List<ProductModel>>.loading(),
+      error: (e, s) => AsyncValue<List<ProductModel>>.error(e, s),
+    );
+
+    final syncStatus = enrichedProductsAsync.when(
       data: (_) => SyncStatus.online,
       loading: () => SyncStatus.syncing,
       error: (_, __) => SyncStatus.offline,
@@ -95,7 +149,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             // Product List
             SizedBox(
               height: 180,
-              child: _buildProductList(productsAsync, cartState),
+              child: _buildProductList(enrichedProductsAsync, cartState),
             ),
             // Cart Section
             if (cartState.items.isNotEmpty) ...[

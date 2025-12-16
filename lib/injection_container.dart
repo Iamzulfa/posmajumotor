@@ -5,15 +5,27 @@ import 'config/constants/app_constants.dart';
 import 'config/constants/supabase_config.dart';
 import 'domain/repositories/repositories.dart';
 import 'data/repositories/repositories.dart';
+import 'core/services/local_cache_manager.dart';
+import 'core/services/local_cache_manager_impl.dart';
+import 'core/services/connectivity_service.dart';
+import 'core/services/connectivity_service_impl.dart';
+import 'core/services/offline_sync_manager.dart';
+import 'core/services/offline_sync_manager_impl.dart';
 
 final getIt = GetIt.instance;
 
 Future<void> setupServiceLocator() async {
+  // Core Services
+  await _setupCoreServices();
+
   // Core
   _setupCore();
 
   // Repositories
   _setupRepositories();
+
+  // Offline Services (depends on repositories)
+  _setupOfflineServices();
 }
 
 void _setupCore() {
@@ -75,5 +87,27 @@ void _setupRepositories() {
   // Dashboard Repository
   getIt.registerLazySingleton<DashboardRepository>(
     () => DashboardRepositoryImpl(getIt<SupabaseClient>()),
+  );
+}
+
+Future<void> _setupCoreServices() async {
+  // Local Cache Manager
+  getIt.registerLazySingleton<LocalCacheManager>(() => LocalCacheManagerImpl());
+
+  // Connectivity Service
+  final connectivityService = ConnectivityServiceImpl();
+  await connectivityService.initialize();
+  getIt.registerLazySingleton<ConnectivityService>(() => connectivityService);
+}
+
+void _setupOfflineServices() {
+  // Offline Sync Manager
+  getIt.registerLazySingleton<OfflineSyncManager>(
+    () => OfflineSyncManagerImpl(
+      connectivityService: getIt<ConnectivityService>(),
+      transactionRepository: SupabaseConfig.isConfigured
+          ? getIt<TransactionRepository>()
+          : null,
+    ),
   );
 }

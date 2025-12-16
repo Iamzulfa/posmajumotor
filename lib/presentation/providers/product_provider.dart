@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/product_repository.dart';
+import 'package:posfelix/core/services/local_cache_manager.dart';
+import 'package:posfelix/core/services/connectivity_service.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'package:posfelix/core/utils/logger.dart';
 
 /// Product list state
 class ProductListState {
@@ -67,28 +70,79 @@ class ProductListState {
   }
 }
 
-/// Product list notifier
+/// Product list notifier with offline support
 class ProductListNotifier extends StateNotifier<ProductListState> {
   final ProductRepository? _repository;
+  final LocalCacheManager? _cacheManager;
+  final ConnectivityService? _connectivityService;
 
-  ProductListNotifier(this._repository) : super(const ProductListState());
+  ProductListNotifier(
+    this._repository,
+    this._cacheManager,
+    this._connectivityService,
+  ) : super(const ProductListState());
 
   Future<void> loadProducts() async {
-    if (_repository == null) return;
-
     state = state.copyWith(isLoading: true, error: null);
-    try {
-      final products = await _repository.getProducts();
-      final categories = await _repository.getCategories();
-      final brands = await _repository.getBrands();
 
-      state = state.copyWith(
-        products: products,
-        categories: categories,
-        brands: brands,
-        isLoading: false,
-      );
+    try {
+      // Check if online and repository available
+      final isOnline = _connectivityService?.isOnline ?? true;
+
+      if (isOnline && _repository != null) {
+        // Fetch from server
+        final products = await _repository.getProducts();
+        final categories = await _repository.getCategories();
+        final brands = await _repository.getBrands();
+
+        // Cache products for offline use
+        if (_cacheManager != null) {
+          await _cacheManager.cacheProducts(products);
+          AppLogger.info('Products cached for offline use');
+        }
+
+        state = state.copyWith(
+          products: products,
+          categories: categories,
+          brands: brands,
+          isLoading: false,
+        );
+      } else {
+        // Offline mode - load from cache
+        if (_cacheManager != null) {
+          final cachedProducts = await _cacheManager.getCachedProducts();
+          AppLogger.info('Loaded ${cachedProducts.length} products from cache');
+
+          state = state.copyWith(
+            products: cachedProducts,
+            isLoading: false,
+            error: cachedProducts.isEmpty ? 'No cached data available' : null,
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Offline mode - no cache available',
+          );
+        }
+      }
     } catch (e) {
+      // Try to load from cache on error
+      if (_cacheManager != null) {
+        try {
+          final cachedProducts = await _cacheManager.getCachedProducts();
+          if (cachedProducts.isNotEmpty) {
+            AppLogger.info(
+              'Loaded ${cachedProducts.length} products from cache (fallback)',
+            );
+            state = state.copyWith(
+              products: cachedProducts,
+              isLoading: false,
+              error: 'Using cached data',
+            );
+            return;
+          }
+        } catch (_) {}
+      }
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -147,13 +201,25 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return getIt<ProductRepository>();
 });
 
-/// Product list provider (StateNotifier for local state management)
+/// Product list provider (StateNotifier for local state management with offline support)
 final productListProvider =
     StateNotifierProvider<ProductListNotifier, ProductListState>((ref) {
-      final repository = SupabaseConfig.isConfigured
-          ? getIt<ProductRepository>()
-          : null;
-      return ProductListNotifier(repository);
+      ProductRepository? repository;
+      LocalCacheManager? cacheManager;
+      ConnectivityService? connectivityService;
+
+      if (SupabaseConfig.isConfigured) {
+        repository = getIt<ProductRepository>();
+      }
+
+      try {
+        cacheManager = getIt<LocalCacheManager>();
+        connectivityService = getIt<ConnectivityService>();
+      } catch (e) {
+        // Services not registered yet
+      }
+
+      return ProductListNotifier(repository, cacheManager, connectivityService);
     });
 
 /// Single product provider (for detail/edit)
@@ -178,6 +244,15 @@ final productsStreamProvider = StreamProvider<List<ProductModel>>((ref) {
   }
   final repository = getIt<ProductRepository>();
   return repository.getProductsStream();
+});
+
+/// Non-stream products provider (for transaction screen as fallback)
+final productsProvider = FutureProvider<List<ProductModel>>((ref) async {
+  if (!SupabaseConfig.isConfigured) {
+    return [];
+  }
+  final repository = getIt<ProductRepository>();
+  return repository.getProducts();
 });
 
 /// Real-time categories stream provider

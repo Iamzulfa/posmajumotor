@@ -7,9 +7,14 @@ enum SyncStatus { online, offline, syncing }
 class SyncStatusWidget extends StatelessWidget {
   final SyncStatus status;
   final String? lastSyncTime;
+  final int pendingCount;
 
-  const SyncStatusWidget({Key? key, required this.status, this.lastSyncTime})
-    : super(key: key);
+  const SyncStatusWidget({
+    super.key,
+    required this.status,
+    this.lastSyncTime,
+    this.pendingCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +27,28 @@ class SyncStatusWidget extends StatelessWidget {
           _getStatusText(),
           style: TextStyle(fontSize: 12, color: _getStatusColor()),
         ),
-        if (lastSyncTime != null) ...[
+        if (pendingCount > 0) ...[
+          const SizedBox(width: AppSpacing.xs),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$pendingCount pending',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.warning,
+              ),
+            ),
+          ),
+        ],
+        if (lastSyncTime != null && pendingCount == 0) ...[
           const SizedBox(width: AppSpacing.xs),
           Text(
-            '• Last sync: $lastSyncTime',
+            '• $lastSyncTime',
             style: const TextStyle(fontSize: 12, color: AppColors.textLight),
           ),
         ],

@@ -13,7 +13,7 @@ class ProductRepositoryImpl implements ProductRepository {
     String? categoryId,
     String? brandId,
     String? searchQuery,
-    bool activeOnly = true,
+    bool activeOnly = false,
   }) async {
     try {
       var query = _client.from('products').select('''
@@ -106,14 +106,19 @@ class ProductRepositoryImpl implements ProductRepository {
         'harga_grossir': product.hargaGrossir,
       };
 
-      final response = await _client
-          .from('products')
-          .insert(data)
-          .select()
-          .single();
+      AppLogger.info('Creating product with data: $data');
 
-      AppLogger.info('Product created: ${product.name}');
-      return ProductModel.fromJson(response);
+      final response = await _client.from('products').insert(data).select('''
+            *,
+            categories(*),
+            brands(*)
+          ''').single();
+
+      AppLogger.info('Product created: ${product.name}, response: $response');
+
+      // Ensure all fields are present in response
+      final createdProduct = ProductModel.fromJson(response);
+      return createdProduct;
     } catch (e) {
       AppLogger.error('Error creating product', e);
       rethrow;
@@ -263,13 +268,15 @@ class ProductRepositoryImpl implements ProductRepository {
   Stream<List<ProductModel>> getProductsStream({
     String? categoryId,
     String? brandId,
-    bool activeOnly = true,
+    bool activeOnly = false,
   }) {
     try {
       // Use Supabase real-time stream with select to include relations
       var stream = _client.from('products').stream(primaryKey: ['id']).map((
         data,
       ) {
+        AppLogger.info('Stream received ${data.length} products from Supabase');
+
         var products = data.map((json) {
           // Try to parse with relations if available
           try {
@@ -280,9 +287,14 @@ class ProductRepositoryImpl implements ProductRepository {
           }
         }).toList();
 
+        AppLogger.info('Parsed ${products.length} products');
+
         // Apply filters
         if (activeOnly) {
           products = products.where((p) => p.isActive).toList();
+          AppLogger.info(
+            'After activeOnly filter: ${products.length} products',
+          );
         }
         if (categoryId != null) {
           products = products.where((p) => p.categoryId == categoryId).toList();
@@ -293,6 +305,7 @@ class ProductRepositoryImpl implements ProductRepository {
 
         // Sort by name
         products.sort((a, b) => a.name.compareTo(b.name));
+        AppLogger.info('Final stream result: ${products.length} products');
         return products;
       });
 

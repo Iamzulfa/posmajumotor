@@ -7,6 +7,9 @@ import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/custom_button.dart';
 import '../../../providers/tax_provider.dart';
 import '../../../providers/dashboard_provider.dart' show TaxPeriod;
+import '../../../../domain/repositories/tax_repository.dart'
+    show ProfitLossReport;
+import '../../../../core/services/pdf_generator.dart';
 
 class TaxCenterScreen extends ConsumerStatefulWidget {
   const TaxCenterScreen({super.key});
@@ -132,11 +135,7 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
             CustomButton(
               text: 'Export PDF',
               icon: Icons.picture_as_pdf,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Generating PDF...')),
-                );
-              },
+              onPressed: () => _exportPDF(profitLossAsync),
             ),
           ],
         ),
@@ -316,7 +315,9 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
   ) {
     return profitLossAsync.when(
       data: (report) {
-        final tierData = report.tierBreakdown.entries
+        // Cast to ProfitLossReport to ensure correct type
+        final profitReport = report as ProfitLossReport;
+        final tierData = profitReport.tierBreakdown.entries
             .map(
               (e) => {
                 'tier': _getTierDisplayName(e.key),
@@ -875,5 +876,58 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]}.',
     );
+  }
+
+  Future<void> _exportPDF(AsyncValue profitLossAsync) async {
+    try {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Generating PDF...')));
+
+      await profitLossAsync.when(
+        data: (report) async {
+          final profitReport = report as ProfitLossReport;
+          await PdfGenerator.generateProfitLossReport(
+            report: profitReport,
+            businessName: 'PosFELIX - Toko Suku Cadang Motor',
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('PDF berhasil dibuat'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+        },
+        loading: () async {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Menunggu data...')));
+          }
+        },
+        error: (error, _) async {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $error'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 }

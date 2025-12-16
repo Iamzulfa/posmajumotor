@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'config/theme/app_theme.dart';
 import 'config/constants/app_constants.dart';
 import 'config/constants/supabase_config.dart';
 import 'config/routes/route_generator.dart';
 import 'injection_container.dart';
 import 'core/utils/logger.dart';
+import 'core/services/hive_adapters.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive for local storage
+  await Hive.initFlutter();
+  await registerHiveAdapters();
+  await openHiveBoxes();
+  AppLogger.info('Hive initialized successfully');
 
   // Initialize Supabase
   if (SupabaseConfig.isConfigured) {

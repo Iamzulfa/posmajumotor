@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
 import '../../../../data/models/models.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../providers/product_provider.dart';
 
 void showProductFormModal(
@@ -44,6 +45,7 @@ class ProductFormModal extends ConsumerStatefulWidget {
 class _ProductFormModalState extends ConsumerState<ProductFormModal> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
+  late TextEditingController _stockController;
   late TextEditingController _hppController;
   late TextEditingController _hargaUmumController;
   late TextEditingController _hargaBengkelController;
@@ -65,6 +67,9 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
     _nameController = TextEditingController(text: product?.name ?? '');
     _descriptionController = TextEditingController(
       text: product?.description ?? '',
+    );
+    _stockController = TextEditingController(
+      text: (product?.stock ?? 0).toString(),
     );
     _hppController = TextEditingController(
       text: (product?.hpp ?? 0).toString(),
@@ -90,6 +95,7 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _stockController.dispose();
     _hppController.dispose();
     _hargaUmumController.dispose();
     _hargaBengkelController.dispose();
@@ -99,8 +105,27 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
   }
 
   Future<void> _handleSaveProduct() async {
-    if (_nameController.text.isEmpty) {
+    if (_nameController.text.trim().isEmpty) {
       _showError('Nama produk tidak boleh kosong');
+      return;
+    }
+
+    final stock = int.tryParse(_stockController.text) ?? 0;
+    final hpp = int.tryParse(_hppController.text) ?? 0;
+    final hargaUmum = int.tryParse(_hargaUmumController.text) ?? 0;
+
+    if (stock <= 0) {
+      _showError('Stok harus lebih dari 0');
+      return;
+    }
+
+    if (hpp <= 0) {
+      _showError('HPP harus lebih dari 0');
+      return;
+    }
+
+    if (hargaUmum <= 0) {
+      _showError('Harga Umum harus lebih dari 0');
       return;
     }
 
@@ -108,34 +133,52 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
 
     try {
       final isEdit = widget.product != null;
+      final productId = widget.product?.id ?? '';
 
-      if (isEdit && widget.product!.id.isEmpty) {
+      AppLogger.info(
+        'Saving product: isEdit=$isEdit, productId=$productId, name=${_nameController.text}',
+      );
+
+      if (isEdit && productId.isEmpty) {
+        AppLogger.error('Product ID is empty for edit operation');
         _showError('Product ID tidak valid');
         setState(() => _isLoading = false);
         return;
       }
 
+      // Generate SKU for new products
+      final sku = isEdit
+          ? widget.product!.sku
+          : 'SKU-${DateTime.now().millisecondsSinceEpoch}';
+
       final productData = ProductModel(
-        id: isEdit ? widget.product!.id : '',
-        name: _nameController.text,
-        description: _descriptionController.text.isEmpty
+        id: productId,
+        sku: sku,
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
             ? null
-            : _descriptionController.text,
+            : _descriptionController.text.trim(),
         categoryId: _selectedCategoryId,
         brandId: _selectedBrandId,
+        stock: int.tryParse(_stockController.text) ?? 0,
         hpp: int.tryParse(_hppController.text) ?? 0,
         hargaUmum: int.tryParse(_hargaUmumController.text) ?? 0,
         hargaBengkel: int.tryParse(_hargaBengkelController.text) ?? 0,
         hargaGrossir: int.tryParse(_hargaGrossirController.text) ?? 0,
         minStock: int.tryParse(_minStockController.text) ?? 5,
-        stock: widget.product?.stock ?? 0,
         isActive: widget.product?.isActive ?? true,
       );
 
+      AppLogger.info('Product data prepared: ${productData.toJson()}');
+
       if (isEdit) {
+        AppLogger.info('Calling updateProduct...');
         await ref.read(productRepositoryProvider).updateProduct(productData);
+        AppLogger.info('updateProduct completed');
       } else {
+        AppLogger.info('Calling createProduct...');
         await ref.read(productRepositoryProvider).createProduct(productData);
+        AppLogger.info('createProduct completed');
       }
 
       if (mounted) {
@@ -154,7 +197,8 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error('Error saving product', e, stackTrace);
       _showError('Error: $e');
     } finally {
       if (mounted) {
@@ -234,9 +278,18 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
               ),
               const SizedBox(height: AppSpacing.lg),
 
+              // Stok
+              _buildTextField(
+                'Stok *',
+                _stockController,
+                '0',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: AppSpacing.md),
+
               // HPP
               _buildTextField(
-                'HPP (Harga Pokok Penjualan)',
+                'HPP (Harga Pokok Penjualan) *',
                 _hppController,
                 '0',
                 keyboardType: TextInputType.number,
@@ -245,7 +298,7 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
 
               // Harga Umum
               _buildTextField(
-                'Harga Umum',
+                'Harga Umum *',
                 _hargaUmumController,
                 '0',
                 keyboardType: TextInputType.number,
