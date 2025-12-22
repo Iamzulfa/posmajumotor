@@ -20,9 +20,9 @@ _$ExpenseModelImpl _$$ExpenseModelImplFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
-      creator: json['users'] == null
+      creator: json['creator'] == null
           ? null
-          : UserModel.fromJson(json['users'] as Map<String, dynamic>),
+          : UserModel.fromJson(json['creator'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$$ExpenseModelImplToJson(_$ExpenseModelImpl instance) =>
@@ -35,5 +35,5 @@ Map<String, dynamic> _$$ExpenseModelImplToJson(_$ExpenseModelImpl instance) =>
       'created_by': instance.createdBy,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
-      'users': instance.creator,
+      'creator': instance.creator,
     };

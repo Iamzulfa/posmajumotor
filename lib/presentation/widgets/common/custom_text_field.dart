@@ -19,7 +19,7 @@ class CustomTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     this.label,
     this.hint,
     this.controller,
@@ -34,7 +34,7 @@ class CustomTextField extends StatelessWidget {
     this.onSubmitted,
     this.focusNode,
     this.textInputAction,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

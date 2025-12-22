@@ -1,6 +1,8 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:posfelix/core/utils/logger.dart';
 
+part 'hive_adapters.g.dart';
+
 // Hive Box Names
 class HiveBoxes {
   static const String productsCache = 'products_cache';
@@ -120,75 +122,5 @@ class QueuedTransaction extends HiveObject {
   void incrementRetry(String? error) {
     retryCount++;
     lastError = error;
-  }
-}
-
-// ============================================
-// HIVE ADAPTERS
-// ============================================
-
-class CacheMetadataAdapter extends TypeAdapter<CacheMetadata> {
-  @override
-  final int typeId = HiveTypeIds.cacheMetadata;
-
-  @override
-  CacheMetadata read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return CacheMetadata(
-      cacheKey: fields[0] as String,
-      cachedAt: fields[1] as DateTime,
-      itemCount: fields[2] as int,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, CacheMetadata obj) {
-    writer
-      ..writeByte(3)
-      ..writeByte(0)
-      ..write(obj.cacheKey)
-      ..writeByte(1)
-      ..write(obj.cachedAt)
-      ..writeByte(2)
-      ..write(obj.itemCount);
-  }
-}
-
-class QueuedTransactionAdapter extends TypeAdapter<QueuedTransaction> {
-  @override
-  final int typeId = HiveTypeIds.queuedTransaction;
-
-  @override
-  QueuedTransaction read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return QueuedTransaction(
-      localId: fields[0] as String,
-      transactionJson: fields[1] as String,
-      queuedAt: fields[2] as DateTime,
-      retryCount: fields[3] as int? ?? 0,
-      lastError: fields[4] as String?,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, QueuedTransaction obj) {
-    writer
-      ..writeByte(5)
-      ..writeByte(0)
-      ..write(obj.localId)
-      ..writeByte(1)
-      ..write(obj.transactionJson)
-      ..writeByte(2)
-      ..write(obj.queuedAt)
-      ..writeByte(3)
-      ..write(obj.retryCount)
-      ..writeByte(4)
-      ..write(obj.lastError);
   }
 }

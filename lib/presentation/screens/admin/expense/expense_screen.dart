@@ -20,7 +20,7 @@ class ExpenseScreen extends ConsumerWidget {
     final syncStatus = expensesAsync.when(
       data: (_) => SyncStatus.online,
       loading: () => SyncStatus.syncing,
-      error: (_, __) => SyncStatus.offline,
+      error: (_, _) => SyncStatus.offline,
     );
 
     return Scaffold(
@@ -482,20 +482,23 @@ class ExpenseScreen extends ConsumerWidget {
   }
 
   String _getCategoryLabel(String category) {
-    switch (category) {
-      case 'LISTRIK':
-        return 'Listrik';
-      case 'GAJI':
-        return 'Gaji';
-      case 'PLASTIK':
-        return 'Plastik';
-      case 'MAKAN_SIANG':
-        return 'Makan Siang';
-      case 'PEMBELIAN_STOK':
-        return 'Pembelian Stok';
-      default:
-        return 'Lainnya';
-    }
+    // Map database categories back to Indonesian display names
+    final categoryMapping = {
+      'GAJI': 'Gaji Karyawan',
+      'SEWA': 'Sewa Tempat',
+      'LISTRIK': 'Listrik & Air',
+      'TRANSPORTASI': 'Transportasi',
+      'PERAWATAN': 'Perawatan Kendaraan',
+      'SUPPLIES': 'Supplies',
+      'MARKETING': 'Marketing',
+      'LAINNYA': 'Lainnya',
+      // Legacy categories (for backward compatibility)
+      'PLASTIK': 'Plastik',
+      'MAKAN_SIANG': 'Makan Siang',
+      'PEMBELIAN_STOK': 'Pembelian Stok',
+    };
+
+    return categoryMapping[category.toUpperCase()] ?? category;
   }
 
   String _formatNumber(int number) {

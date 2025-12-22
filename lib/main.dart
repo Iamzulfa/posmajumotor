@@ -9,6 +9,7 @@ import 'config/routes/route_generator.dart';
 import 'injection_container.dart';
 import 'core/utils/logger.dart';
 import 'core/services/hive_adapters.dart';
+import 'core/utils/auto_responsive.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -100,6 +101,13 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        // Auto-initialize responsive system on first build
+        if (!AutoResponsive.isInitialized) {
+          AutoResponsive.initialize(context);
+        }
+        return child ?? const SizedBox.shrink();
+      },
     );
   }
 }

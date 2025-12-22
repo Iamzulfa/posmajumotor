@@ -26,7 +26,7 @@ class TransactionItemModel with _$TransactionItemModel {
     @JsonKey(name: 'created_at') DateTime? createdAt,
 
     // Relations (optional)
-    @JsonKey(name: 'products') ProductModel? product,
+    ProductModel? product,
   }) = _TransactionItemModel;
 
   factory TransactionItemModel.fromJson(Map<String, dynamic> json) =>

@@ -21,9 +21,9 @@ _$TransactionItemModelImpl _$$TransactionItemModelImplFromJson(
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
-      product: json['products'] == null
+      product: json['product'] == null
           ? null
-          : ProductModel.fromJson(json['products'] as Map<String, dynamic>),
+          : ProductModel.fromJson(json['product'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$$TransactionItemModelImplToJson(
@@ -39,5 +39,5 @@ Map<String, dynamic> _$$TransactionItemModelImplToJson(
       'unit_hpp': instance.unitHpp,
       'subtotal': instance.subtotal,
       'created_at': instance.createdAt?.toIso8601String(),
-      'products': instance.product,
+      'product': instance.product,
     };

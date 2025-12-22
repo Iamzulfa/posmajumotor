@@ -20,14 +20,37 @@ class TransactionScreen extends ConsumerStatefulWidget {
   ConsumerState<TransactionScreen> createState() => _TransactionScreenState();
 }
 
-class _TransactionScreenState extends ConsumerState<TransactionScreen> {
+class _TransactionScreenState extends ConsumerState<TransactionScreen>
+    with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   final _notesController = TextEditingController();
   String _searchQuery = '';
 
+  // Cart toggle animation
+  late AnimationController _cartAnimationController;
+  late Animation<double> _cartSlideAnimation;
+  bool _isCartVisible = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize cart animation
+    _cartAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _cartSlideAnimation =
+        Tween<double>(
+          begin: 1.0, // Hidden (off-screen)
+          end: 0.0, // Visible (on-screen)
+        ).animate(
+          CurvedAnimation(
+            parent: _cartAnimationController,
+            curve: Curves.easeInOut,
+          ),
+        );
+
     // Invalidate products stream when screen is opened to get latest data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(productsStreamProvider);
@@ -38,6 +61,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   void dispose() {
     _searchController.dispose();
     _notesController.dispose();
+    _cartAnimationController.dispose();
     super.dispose();
   }
 
@@ -62,9 +86,8 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch products - use non-stream provider for now (real-time has issues)
-    // TODO: Switch back to productsStreamProvider once real-time is fixed
-    final productsAsync = ref.watch(productsProvider);
+    // Watch products - use stream provider for real-time updates
+    final productsAsync = ref.watch(productsStreamProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final brandsAsync = ref.watch(brandsStreamProvider);
     final cartState = ref.watch(cartProvider);
@@ -105,69 +128,74 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     final syncStatus = enrichedProductsAsync.when(
       data: (_) => SyncStatus.online,
       loading: () => SyncStatus.syncing,
-      error: (_, __) => SyncStatus.offline,
+      error: (_, _) => SyncStatus.offline,
     );
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      body: SafeArea(
-        child: Column(
-          children: [
-            AppHeader(
-              title: 'Transaksi Penjualan',
-              syncStatus: syncStatus,
-              lastSyncTime: syncStatus == SyncStatus.online
-                  ? 'Real-time'
-                  : 'Syncing...',
-            ),
-            // Tier Selector
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: PillSelector<String>(
-                label: 'Tier Pembeli',
-                items: const ['UMUM', 'BENGKEL', 'GROSSIR'],
-                selectedItem: cartState.tier,
-                itemLabel: (item) {
-                  switch (item) {
-                    case 'UMUM':
-                      return 'Orang Umum';
-                    case 'BENGKEL':
-                      return 'Bengkel';
-                    case 'GROSSIR':
-                      return 'Grossir';
-                    default:
-                      return item;
-                  }
-                },
-                onSelected: (item) =>
-                    ref.read(cartProvider.notifier).setTier(item),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            // Product Section
-            _buildProductSection(cartState),
-            const SizedBox(height: AppSpacing.sm),
-            // Product List
-            SizedBox(
-              height: 180,
-              child: _buildProductList(enrichedProductsAsync, cartState),
-            ),
-            // Cart Section
-            if (cartState.items.isNotEmpty) ...[
-              const Divider(height: 1),
-              Expanded(child: _buildCartSection(cartState, transactionState)),
-            ] else
-              const Expanded(
-                child: Center(
-                  child: Text(
-                    'Keranjang kosong\nTambahkan produk untuk memulai transaksi',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textGray),
+      body: Stack(
+        children: [
+          // Main content
+          SafeArea(
+            child: Column(
+              children: [
+                AppHeader(
+                  title: 'Transaksi Penjualan',
+                  syncStatus: syncStatus,
+                  lastSyncTime: syncStatus == SyncStatus.online
+                      ? 'Real-time'
+                      : 'Syncing...',
+                ),
+                // Tier Selector
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  child: PillSelector<String>(
+                    label: 'Tier Pembeli',
+                    items: const ['UMUM', 'BENGKEL', 'GROSSIR'],
+                    selectedItem: cartState.tier,
+                    itemLabel: (item) {
+                      switch (item) {
+                        case 'UMUM':
+                          return 'Orang Umum';
+                        case 'BENGKEL':
+                          return 'Bengkel';
+                        case 'GROSSIR':
+                          return 'Grossir';
+                        default:
+                          return item;
+                      }
+                    },
+                    onSelected: (item) =>
+                        ref.read(cartProvider.notifier).setTier(item),
                   ),
                 ),
-              ),
-          ],
-        ),
+                const SizedBox(height: AppSpacing.md),
+                // Product Section
+                _buildProductSection(cartState),
+                const SizedBox(height: AppSpacing.sm),
+                // Product List - Now takes full remaining space
+                Expanded(
+                  child: _buildProductList(enrichedProductsAsync, cartState),
+                ),
+                // Bottom padding for floating cart button
+                SizedBox(height: cartState.items.isNotEmpty ? 80 : 20),
+              ],
+            ),
+          ),
+
+          // Floating Cart Button (when cart has items)
+          if (cartState.items.isNotEmpty) _buildFloatingCartButton(cartState),
+
+          // Background overlay when cart is visible
+          if (cartState.items.isNotEmpty && _isCartVisible)
+            _buildBackgroundOverlay(),
+
+          // Sliding Cart Panel
+          if (cartState.items.isNotEmpty)
+            _buildSlidingCartPanel(cartState, transactionState),
+        ],
       ),
     );
   }
@@ -372,50 +400,272 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     );
   }
 
+  // New methods for toggleable cart
+  Widget _buildFloatingCartButton(CartState cartState) {
+    return Positioned(
+      bottom: 20,
+      left: 16,
+      right: 16,
+      child: Container(
+        height: 64, // Slightly taller for better touch target
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(32),
+            onTap: _toggleCart,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Stack(
+                      children: [
+                        Icon(
+                          Icons.shopping_cart,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                        if (cartState.items.isNotEmpty)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '${cartState.items.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${cartState.items.length} item dalam keranjang',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          'Rp ${_formatNumber(cartState.total)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _isCartVisible ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.keyboard_arrow_up,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSlidingCartPanel(
+    CartState cartState,
+    TransactionListState transactionState,
+  ) {
+    return AnimatedBuilder(
+      animation: _cartSlideAnimation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(
+            0,
+            MediaQuery.of(context).size.height * _cartSlideAnimation.value,
+          ),
+          child: Container(
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height, // Full screen height
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              // No border radius for full screen professional look
+            ),
+            child: Column(
+              children: [
+                // Status bar space
+                Container(
+                  height: MediaQuery.of(context).padding.top,
+                  color: AppColors.background,
+                ),
+                // Cart header with close button - more prominent and professional
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.border, width: 1),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.shopping_cart,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Keranjang Belanja',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                            Text(
+                              '${cartState.items.length} item • Rp ${_formatNumber(cartState.total)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textGray,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.textGray.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          onPressed: _toggleCart,
+                          icon: const Icon(Icons.close),
+                          color: AppColors.textGray,
+                          iconSize: 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Cart content - takes remaining space
+                Expanded(child: _buildCartSection(cartState, transactionState)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _toggleCart() {
+    setState(() {
+      _isCartVisible = !_isCartVisible;
+    });
+
+    if (_isCartVisible) {
+      _cartAnimationController.forward();
+    } else {
+      _cartAnimationController.reverse();
+    }
+  }
+
+  Widget _buildBackgroundOverlay() {
+    return AnimatedBuilder(
+      animation: _cartSlideAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: 1.0 - _cartSlideAnimation.value, // Fade in as cart slides up
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.black.withValues(
+              alpha: 0.6,
+            ), // Slightly darker for better contrast
+            child: GestureDetector(
+              onTap: _toggleCart, // Close cart when tapping background
+              child: Container(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildCartSection(
     CartState cartState,
     TransactionListState transactionState,
   ) {
-    final cartHeaderFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 14,
-      tabletSize: 16,
-      desktopSize: 18,
-    );
-    final cartHeaderPadding = ResponsiveUtils.getResponsivePadding(context);
-    final cartHeaderSpacing = ResponsiveUtils.getResponsiveSpacing(
-      context,
-      phoneSpacing: 6,
-      tabletSpacing: 8,
-      desktopSpacing: 10,
-    );
-
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cart Header
-          Padding(
-            padding: cartHeaderPadding,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.shopping_cart,
-                  color: AppColors.primary,
-                  size: ResponsiveUtils.getResponsiveIconSize(context),
-                ),
-                SizedBox(width: cartHeaderSpacing),
-                Text(
-                  'Keranjang (${cartState.items.length})',
-                  style: TextStyle(
-                    fontSize: cartHeaderFontSize,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
           // Cart Items
           ListView.builder(
             shrinkWrap: true,

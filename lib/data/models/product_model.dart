@@ -34,8 +34,8 @@ class ProductModel with _$ProductModel {
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
 
     // Relations (optional, for joined queries)
-    @JsonKey(name: 'categories') CategoryModel? category,
-    @JsonKey(name: 'brands') BrandModel? brand,
+    CategoryModel? category,
+    BrandModel? brand,
   }) = _ProductModel;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) =>

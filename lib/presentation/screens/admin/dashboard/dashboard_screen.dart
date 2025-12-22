@@ -32,7 +32,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final syncStatus = dashboardAsync.when(
       data: (_) => SyncStatus.online,
       loading: () => SyncStatus.syncing,
-      error: (_, __) => SyncStatus.offline,
+      error: (_, _) => SyncStatus.offline,
     );
 
     return Scaffold(
@@ -633,10 +633,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               int maxOmset = 0;
               int maxProfit = 0;
               for (final summary in dailySummaries) {
-                if (summary.totalOmset > maxOmset)
+                if (summary.totalOmset > maxOmset) {
                   maxOmset = summary.totalOmset;
-                if (summary.totalProfit > maxProfit)
+                }
+                if (summary.totalProfit > maxProfit) {
                   maxProfit = summary.totalProfit;
+                }
               }
 
               return Column(

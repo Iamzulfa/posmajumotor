@@ -40,7 +40,6 @@ mixin _$TransactionItemModel {
   @JsonKey(name: 'created_at')
   DateTime? get createdAt =>
       throw _privateConstructorUsedError; // Relations (optional)
-  @JsonKey(name: 'products')
   ProductModel? get product => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -66,7 +65,7 @@ abstract class $TransactionItemModelCopyWith<$Res> {
       @JsonKey(name: 'unit_hpp') int unitHpp,
       int subtotal,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'products') ProductModel? product});
+      ProductModel? product});
 
   $ProductModelCopyWith<$Res>? get product;
 }
@@ -177,7 +176,7 @@ abstract class _$$TransactionItemModelImplCopyWith<$Res>
       @JsonKey(name: 'unit_hpp') int unitHpp,
       int subtotal,
       @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'products') ProductModel? product});
+      ProductModel? product});
 
   @override
   $ProductModelCopyWith<$Res>? get product;
@@ -269,7 +268,7 @@ class _$TransactionItemModelImpl extends _TransactionItemModel {
       @JsonKey(name: 'unit_hpp') required this.unitHpp,
       required this.subtotal,
       @JsonKey(name: 'created_at') this.createdAt,
-      @JsonKey(name: 'products') this.product})
+      this.product})
       : super._();
 
   factory _$TransactionItemModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -306,7 +305,6 @@ class _$TransactionItemModelImpl extends _TransactionItemModel {
   final DateTime? createdAt;
 // Relations (optional)
   @override
-  @JsonKey(name: 'products')
   final ProductModel? product;
 
   @override
@@ -374,18 +372,17 @@ class _$TransactionItemModelImpl extends _TransactionItemModel {
 
 abstract class _TransactionItemModel extends TransactionItemModel {
   const factory _TransactionItemModel(
-          {required final String id,
-          @JsonKey(name: 'transaction_id') required final String transactionId,
-          @JsonKey(name: 'product_id') required final String productId,
-          @JsonKey(name: 'product_name') required final String productName,
-          @JsonKey(name: 'product_sku') final String? productSku,
-          required final int quantity,
-          @JsonKey(name: 'unit_price') required final int unitPrice,
-          @JsonKey(name: 'unit_hpp') required final int unitHpp,
-          required final int subtotal,
-          @JsonKey(name: 'created_at') final DateTime? createdAt,
-          @JsonKey(name: 'products') final ProductModel? product}) =
-      _$TransactionItemModelImpl;
+      {required final String id,
+      @JsonKey(name: 'transaction_id') required final String transactionId,
+      @JsonKey(name: 'product_id') required final String productId,
+      @JsonKey(name: 'product_name') required final String productName,
+      @JsonKey(name: 'product_sku') final String? productSku,
+      required final int quantity,
+      @JsonKey(name: 'unit_price') required final int unitPrice,
+      @JsonKey(name: 'unit_hpp') required final int unitHpp,
+      required final int subtotal,
+      @JsonKey(name: 'created_at') final DateTime? createdAt,
+      final ProductModel? product}) = _$TransactionItemModelImpl;
   const _TransactionItemModel._() : super._();
 
   factory _TransactionItemModel.fromJson(Map<String, dynamic> json) =
@@ -419,7 +416,6 @@ abstract class _TransactionItemModel extends TransactionItemModel {
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;
   @override // Relations (optional)
-  @JsonKey(name: 'products')
   ProductModel? get product;
   @override
   @JsonKey(ignore: true)

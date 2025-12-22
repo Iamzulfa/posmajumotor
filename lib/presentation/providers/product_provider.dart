@@ -6,6 +6,7 @@ import 'package:posfelix/core/services/connectivity_service.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
 import 'package:posfelix/core/utils/logger.dart';
+import 'package:posfelix/core/utils/error_handler.dart';
 
 /// Product list state
 class ProductListState {
@@ -163,7 +164,8 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
       await _repository.createProduct(product);
       await loadProducts(); // Reload list
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 
@@ -175,7 +177,8 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
       await _repository.updateProduct(product);
       await loadProducts(); // Reload list
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 
@@ -187,7 +190,8 @@ class ProductListNotifier extends StateNotifier<ProductListState> {
       await _repository.deleteProduct(id);
       await loadProducts(); // Reload list
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 

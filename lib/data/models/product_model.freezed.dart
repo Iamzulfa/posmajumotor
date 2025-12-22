@@ -47,9 +47,7 @@ mixin _$ProductModel {
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt =>
       throw _privateConstructorUsedError; // Relations (optional, for joined queries)
-  @JsonKey(name: 'categories')
   CategoryModel? get category => throw _privateConstructorUsedError;
-  @JsonKey(name: 'brands')
   BrandModel? get brand => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -81,8 +79,8 @@ abstract class $ProductModelCopyWith<$Res> {
       @JsonKey(name: 'is_active') bool isActive,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
-      @JsonKey(name: 'categories') CategoryModel? category,
-      @JsonKey(name: 'brands') BrandModel? brand});
+      CategoryModel? category,
+      BrandModel? brand});
 
   $CategoryModelCopyWith<$Res>? get category;
   $BrandModelCopyWith<$Res>? get brand;
@@ -246,8 +244,8 @@ abstract class _$$ProductModelImplCopyWith<$Res>
       @JsonKey(name: 'is_active') bool isActive,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
-      @JsonKey(name: 'categories') CategoryModel? category,
-      @JsonKey(name: 'brands') BrandModel? brand});
+      CategoryModel? category,
+      BrandModel? brand});
 
   @override
   $CategoryModelCopyWith<$Res>? get category;
@@ -382,8 +380,8 @@ class _$ProductModelImpl extends _ProductModel {
       @JsonKey(name: 'is_active') this.isActive = true,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
-      @JsonKey(name: 'categories') this.category,
-      @JsonKey(name: 'brands') this.brand})
+      this.category,
+      this.brand})
       : super._();
 
   factory _$ProductModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -437,10 +435,8 @@ class _$ProductModelImpl extends _ProductModel {
   final DateTime? updatedAt;
 // Relations (optional, for joined queries)
   @override
-  @JsonKey(name: 'categories')
   final CategoryModel? category;
   @override
-  @JsonKey(name: 'brands')
   final BrandModel? brand;
 
   @override
@@ -538,8 +534,8 @@ abstract class _ProductModel extends ProductModel {
       @JsonKey(name: 'is_active') final bool isActive,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
-      @JsonKey(name: 'categories') final CategoryModel? category,
-      @JsonKey(name: 'brands') final BrandModel? brand}) = _$ProductModelImpl;
+      final CategoryModel? category,
+      final BrandModel? brand}) = _$ProductModelImpl;
   const _ProductModel._() : super._();
 
   factory _ProductModel.fromJson(Map<String, dynamic> json) =
@@ -587,10 +583,8 @@ abstract class _ProductModel extends ProductModel {
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt;
   @override // Relations (optional, for joined queries)
-  @JsonKey(name: 'categories')
   CategoryModel? get category;
   @override
-  @JsonKey(name: 'brands')
   BrandModel? get brand;
   @override
   @JsonKey(ignore: true)

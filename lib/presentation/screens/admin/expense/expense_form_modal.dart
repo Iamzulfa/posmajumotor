@@ -90,6 +90,23 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
     try {
       final amount = int.parse(_amountController.text);
 
+      // Map Indonesian category names to database categories
+      final categoryMapping = {
+        'Gaji Karyawan': 'GAJI',
+        'Sewa Tempat': 'SEWA',
+        'Listrik & Air': 'LISTRIK',
+        'Transportasi': 'TRANSPORTASI',
+        'Perawatan Kendaraan': 'PERAWATAN',
+        'Supplies': 'SUPPLIES',
+        'Marketing': 'MARKETING',
+        'Lainnya': 'LAINNYA',
+      };
+
+      final dbCategory =
+          categoryMapping[_selectedCategory] ?? _selectedCategory ?? 'LAINNYA';
+
+      AppLogger.info('💰 Saving expense: $_selectedCategory → $dbCategory');
+
       if (widget.expense != null) {
         // Edit existing expense
         final updatedExpense = widget.expense!.copyWith(
@@ -97,7 +114,7 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
               ? null
               : _descriptionController.text.trim(),
           amount: amount,
-          category: _selectedCategory ?? widget.expense!.category,
+          category: dbCategory,
         );
 
         await ref
@@ -107,19 +124,17 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
         AppLogger.info('Expense updated: ${updatedExpense.id}');
       } else {
         // Create new expense
-        final newExpense = ExpenseModel(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          description: _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
-          amount: amount,
-          category: _selectedCategory ?? 'Lainnya',
-          expenseDate: DateTime.now(),
-        );
+        await ref
+            .read(expenseListProvider.notifier)
+            .createExpense(
+              category: dbCategory,
+              amount: amount,
+              description: _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
+            );
 
-        await ref.read(expenseListProvider.notifier).addExpense(newExpense);
-
-        AppLogger.info('Expense created: ${newExpense.id}');
+        AppLogger.info('Expense creation requested');
       }
 
       if (mounted) {

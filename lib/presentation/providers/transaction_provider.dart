@@ -6,6 +6,7 @@ import 'package:posfelix/core/services/offline_sync_manager.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
 import 'package:posfelix/core/utils/logger.dart';
+import 'package:posfelix/core/utils/error_handler.dart';
 import 'cart_provider.dart';
 
 /// Transaction list state
@@ -53,7 +54,8 @@ class TransactionListNotifier extends StateNotifier<TransactionListState> {
       final transactions = await _repository.getTodayTransactions();
       state = state.copyWith(transactions: transactions, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 
@@ -150,13 +152,15 @@ class TransactionListNotifier extends StateNotifier<TransactionListState> {
         } else {
           state = state.copyWith(
             isLoading: false,
-            error: 'Cannot create transaction offline',
+            error:
+                'Tidak dapat membuat transaksi dalam mode offline. Silakan periksa koneksi internet Anda.',
           );
           return null;
         }
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
       return null;
     }
   }
@@ -169,7 +173,8 @@ class TransactionListNotifier extends StateNotifier<TransactionListState> {
       await _repository.refundTransaction(id);
       await loadTodayTransactions();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 

@@ -5,6 +5,7 @@ import '../../../../config/theme/app_spacing.dart';
 import '../../../../data/models/models.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../providers/product_provider.dart';
+import '../../../providers/inventory_provider.dart';
 
 void showProductFormModal(
   BuildContext context, {
@@ -64,6 +65,17 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
 
   void _initializeControllers() {
     final product = widget.product;
+
+    // Debug: Log product data
+    if (product != null) {
+      AppLogger.info('Initializing form with product: ${product.name}');
+      AppLogger.info(
+        'Product prices: hpp=${product.hpp}, hargaUmum=${product.hargaUmum}, hargaBengkel=${product.hargaBengkel}, hargaGrossir=${product.hargaGrossir}',
+      );
+    } else {
+      AppLogger.info('Initializing form for new product');
+    }
+
     _nameController = TextEditingController(text: product?.name ?? '');
     _descriptionController = TextEditingController(
       text: product?.description ?? '',
@@ -182,8 +194,16 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
       }
 
       if (mounted) {
-        // Invalidate stream to refresh UI
+        // Force refresh all product-related providers
         ref.invalidate(productsStreamProvider);
+        ref.invalidate(productsProvider);
+        ref.invalidate(enrichedProductsProvider);
+        ref.invalidate(categoriesStreamProvider);
+        ref.invalidate(brandsStreamProvider);
+        ref.invalidate(productListProvider);
+
+        // Wait a moment for providers to refresh
+        await Future.delayed(const Duration(milliseconds: 100));
 
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(

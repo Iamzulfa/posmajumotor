@@ -8,6 +8,20 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
 
   ExpenseRepositoryImpl(this._client);
 
+  // Helper method for safe numeric casting
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  // Helper method for safe string casting
+  String _safeToString(dynamic value, [String defaultValue = '']) {
+    if (value == null) return defaultValue;
+    return value.toString();
+  }
+
   @override
   Future<List<ExpenseModel>> getExpenses({
     DateTime? startDate,
@@ -106,16 +120,25 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
         'created_by': _client.auth.currentUser?.id,
       };
 
+      AppLogger.info('💾 Creating expense with data: $data');
+
       final response = await _client
           .from('expenses')
           .insert(data)
           .select()
           .single();
 
-      AppLogger.info('Expense created: $category - $amount');
-      return ExpenseModel.fromJson(response);
+      AppLogger.info('✅ Expense created successfully: $category - $amount');
+      AppLogger.info('   Response: $response');
+
+      final createdExpense = ExpenseModel.fromJson(response);
+      AppLogger.info(
+        '   Parsed expense: ${createdExpense.id} - ${createdExpense.expenseDate}',
+      );
+
+      return createdExpense;
     } catch (e) {
-      AppLogger.error('Error creating expense', e);
+      AppLogger.error('❌ Error creating expense', e);
       rethrow;
     }
   }
@@ -186,8 +209,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       final Map<String, int> summary = {};
 
       for (final row in response) {
-        final category = row['category'] as String;
-        final amount = (row['amount'] as num).toInt();
+        final category = _safeToString(row['category'], 'LAINNYA');
+        final amount = _safeToInt(row['amount']);
         summary[category] = (summary[category] ?? 0) + amount;
       }
 
@@ -221,7 +244,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
 
       int total = 0;
       for (final row in response) {
-        total += (row['amount'] as num).toInt();
+        total += _safeToInt(row['amount']);
       }
 
       return total;
@@ -247,13 +270,23 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
           .from('expenses')
           .stream(primaryKey: ['id'])
           .map((data) {
-            var expenses = data
-                .map((json) => ExpenseModel.fromJson(json))
-                .toList();
+            // Convert to ExpenseModel with safe parsing
+            final expenses = <ExpenseModel>[];
+            for (final json in data) {
+              try {
+                expenses.add(ExpenseModel.fromJson(json));
+              } catch (e) {
+                AppLogger.warning('Failed to parse expense: $e');
+                // Skip invalid expense data
+                continue;
+              }
+            }
 
             // Apply filters
+            var filteredExpenses = expenses;
+
             if (startDate != null) {
-              expenses = expenses
+              filteredExpenses = filteredExpenses
                   .where(
                     (e) =>
                         e.expenseDate.isAfter(startDate) ||
@@ -262,7 +295,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
                   .toList();
             }
             if (endDate != null) {
-              expenses = expenses
+              filteredExpenses = filteredExpenses
                   .where(
                     (e) =>
                         e.expenseDate.isBefore(endDate) ||
@@ -271,35 +304,100 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
                   .toList();
             }
             if (category != null) {
-              expenses = expenses.where((e) => e.category == category).toList();
+              filteredExpenses = filteredExpenses
+                  .where((e) => e.category == category)
+                  .toList();
             }
 
             // Sort by expense_date descending
-            expenses.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+            filteredExpenses.sort(
+              (a, b) => b.expenseDate.compareTo(a.expenseDate),
+            );
 
             // Apply limit
-            if (limit != null && expenses.length > limit) {
-              expenses = expenses.take(limit).toList();
+            if (limit != null && filteredExpenses.length > limit) {
+              filteredExpenses = filteredExpenses.take(limit).toList();
             }
 
-            return expenses;
+            return filteredExpenses;
           })
           .handleError((error) {
             AppLogger.error('Error streaming expenses', error);
           });
     } catch (e) {
       AppLogger.error('Error setting up expenses stream', e);
-      rethrow;
+      // Return empty stream instead of throwing
+      return Stream.value([]);
     }
   }
 
   @override
   Stream<List<ExpenseModel>> getTodayExpensesStream() {
     final today = DateTime.now();
-    final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final dateStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-    return getExpensesStream(startDate: startOfDay, endDate: endOfDay);
+    AppLogger.info('📅 Fetching expenses for date: $dateStr');
+
+    try {
+      return _client
+          .from('expenses')
+          .stream(primaryKey: ['id'])
+          .map((data) {
+            AppLogger.info(
+              '📦 Received ${data.length} expense records from stream',
+            );
+
+            // Filter for today's expenses only
+            final todayExpenses = data.where((json) {
+              final expenseDate = json['expense_date'] as String?;
+              final matches = expenseDate == dateStr;
+              if (!matches && expenseDate != null) {
+                AppLogger.info(
+                  '   Skipping expense with date: $expenseDate (looking for $dateStr)',
+                );
+              }
+              return matches;
+            }).toList();
+
+            AppLogger.info(
+              '✅ Found ${todayExpenses.length} expenses for today',
+            );
+
+            // Convert to ExpenseModel with safe parsing
+            final expenses = <ExpenseModel>[];
+            for (final json in todayExpenses) {
+              try {
+                final expense = ExpenseModel.fromJson(json);
+                expenses.add(expense);
+                AppLogger.info(
+                  '   ✓ Parsed expense: ${expense.category} - Rp ${expense.amount}',
+                );
+              } catch (e) {
+                AppLogger.warning('Failed to parse expense: $e');
+                AppLogger.warning('   JSON: $json');
+                // Skip invalid expense data
+              }
+            }
+
+            // Sort by created_at descending
+            expenses.sort((a, b) {
+              if (a.createdAt == null && b.createdAt == null) return 0;
+              if (a.createdAt == null) return 1;
+              if (b.createdAt == null) return -1;
+              return b.createdAt!.compareTo(a.createdAt!);
+            });
+
+            return expenses;
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming today expenses', error);
+          });
+    } catch (e) {
+      AppLogger.error('Error setting up today expenses stream', e);
+      // Return empty stream instead of throwing
+      return Stream.value([]);
+    }
   }
 
   @override

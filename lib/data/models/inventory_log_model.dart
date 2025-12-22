@@ -11,26 +11,26 @@ class InventoryLogModel with _$InventoryLogModel {
 
   const factory InventoryLogModel({
     required String id,
-    @JsonKey(name: 'product_id') required String productId,
+    required String productId,
 
     // Change info
     required String type, // IN, OUT, ADJUSTMENT
     required int quantity,
-    @JsonKey(name: 'stock_before') required int stockBefore,
-    @JsonKey(name: 'stock_after') required int stockAfter,
+    required int stockBefore,
+    required int stockAfter,
 
     // Reference
-    @JsonKey(name: 'reference_type') String? referenceType,
-    @JsonKey(name: 'reference_id') String? referenceId,
+    String? referenceType,
+    String? referenceId,
     String? reason,
 
     // Metadata
-    @JsonKey(name: 'created_by') String? createdBy,
-    @JsonKey(name: 'created_at') DateTime? createdAt,
+    String? createdBy,
+    DateTime? createdAt,
 
     // Relations (optional)
-    @JsonKey(name: 'products') ProductModel? product,
-    @JsonKey(name: 'users') UserModel? creator,
+    ProductModel? product,
+    UserModel? creator,
   }) = _InventoryLogModel;
 
   factory InventoryLogModel.fromJson(Map<String, dynamic> json) =>

@@ -10,40 +10,40 @@ _$InventoryLogModelImpl _$$InventoryLogModelImplFromJson(
         Map<String, dynamic> json) =>
     _$InventoryLogModelImpl(
       id: json['id'] as String,
-      productId: json['product_id'] as String,
+      productId: json['productId'] as String,
       type: json['type'] as String,
       quantity: (json['quantity'] as num).toInt(),
-      stockBefore: (json['stock_before'] as num).toInt(),
-      stockAfter: (json['stock_after'] as num).toInt(),
-      referenceType: json['reference_type'] as String?,
-      referenceId: json['reference_id'] as String?,
+      stockBefore: (json['stockBefore'] as num).toInt(),
+      stockAfter: (json['stockAfter'] as num).toInt(),
+      referenceType: json['referenceType'] as String?,
+      referenceId: json['referenceId'] as String?,
       reason: json['reason'] as String?,
-      createdBy: json['created_by'] as String?,
-      createdAt: json['created_at'] == null
+      createdBy: json['createdBy'] as String?,
+      createdAt: json['createdAt'] == null
           ? null
-          : DateTime.parse(json['created_at'] as String),
-      product: json['products'] == null
+          : DateTime.parse(json['createdAt'] as String),
+      product: json['product'] == null
           ? null
-          : ProductModel.fromJson(json['products'] as Map<String, dynamic>),
-      creator: json['users'] == null
+          : ProductModel.fromJson(json['product'] as Map<String, dynamic>),
+      creator: json['creator'] == null
           ? null
-          : UserModel.fromJson(json['users'] as Map<String, dynamic>),
+          : UserModel.fromJson(json['creator'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$$InventoryLogModelImplToJson(
         _$InventoryLogModelImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
-      'product_id': instance.productId,
+      'productId': instance.productId,
       'type': instance.type,
       'quantity': instance.quantity,
-      'stock_before': instance.stockBefore,
-      'stock_after': instance.stockAfter,
-      'reference_type': instance.referenceType,
-      'reference_id': instance.referenceId,
+      'stockBefore': instance.stockBefore,
+      'stockAfter': instance.stockAfter,
+      'referenceType': instance.referenceType,
+      'referenceId': instance.referenceId,
       'reason': instance.reason,
-      'created_by': instance.createdBy,
-      'created_at': instance.createdAt?.toIso8601String(),
-      'products': instance.product,
-      'users': instance.creator,
+      'createdBy': instance.createdBy,
+      'createdAt': instance.createdAt?.toIso8601String(),
+      'product': instance.product,
+      'creator': instance.creator,
     };

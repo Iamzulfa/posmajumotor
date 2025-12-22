@@ -261,6 +261,139 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   // ============================================
+  // CATEGORY CRUD METHODS
+  // ============================================
+
+  @override
+  Future<CategoryModel> createCategory(CategoryModel category) async {
+    try {
+      final data = category.toJson();
+      data.remove('id'); // Let database generate ID
+      data.remove('created_at'); // Let database set timestamp
+      data.remove('updated_at'); // Let database set timestamp
+
+      AppLogger.info('Creating category with data: $data');
+
+      final response = await _client
+          .from('categories')
+          .insert(data)
+          .select()
+          .single();
+
+      AppLogger.info('Category created: ${response['name']}');
+      return CategoryModel.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error creating category', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<CategoryModel> updateCategory(CategoryModel category) async {
+    try {
+      final data = category.toJson();
+      data.remove('id'); // Don't update ID
+      data.remove('created_at'); // Don't update created_at
+      data['updated_at'] = DateTime.now().toIso8601String(); // Update timestamp
+
+      AppLogger.info('Update data: $data');
+
+      final response = await _client
+          .from('categories')
+          .update(data)
+          .eq('id', category.id)
+          .select()
+          .single();
+
+      AppLogger.info('Category updated: ${category.name}');
+      return CategoryModel.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error updating category', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> deleteCategory(String id) async {
+    try {
+      // Soft delete
+      await _client
+          .from('categories')
+          .update({'is_active': false})
+          .eq('id', id);
+      AppLogger.info('Category deleted (soft): $id');
+    } catch (e) {
+      AppLogger.error('Error deleting category', e);
+      rethrow;
+    }
+  }
+
+  // ============================================
+  // BRAND CRUD METHODS
+  // ============================================
+
+  @override
+  Future<BrandModel> createBrand(BrandModel brand) async {
+    try {
+      final data = brand.toJson();
+      data.remove('id'); // Let database generate ID
+      data.remove('created_at'); // Let database set timestamp
+      data.remove('updated_at'); // Let database set timestamp
+
+      AppLogger.info('Creating brand with data: $data');
+
+      final response = await _client
+          .from('brands')
+          .insert(data)
+          .select()
+          .single();
+
+      AppLogger.info('Brand created: ${response['name']}');
+      return BrandModel.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error creating brand', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<BrandModel> updateBrand(BrandModel brand) async {
+    try {
+      final data = brand.toJson();
+      data.remove('id'); // Don't update ID
+      data.remove('created_at'); // Don't update created_at
+      data['updated_at'] = DateTime.now().toIso8601String(); // Update timestamp
+
+      AppLogger.info('Update data: $data');
+
+      final response = await _client
+          .from('brands')
+          .update(data)
+          .eq('id', brand.id)
+          .select()
+          .single();
+
+      AppLogger.info('Brand updated: ${brand.name}');
+      return BrandModel.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error updating brand', e);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> deleteBrand(String id) async {
+    try {
+      // Soft delete
+      await _client.from('brands').update({'is_active': false}).eq('id', id);
+      AppLogger.info('Brand deleted (soft): $id');
+    } catch (e) {
+      AppLogger.error('Error deleting brand', e);
+      rethrow;
+    }
+  }
+
+  // ============================================
   // STREAM METHODS (Real-time updates)
   // ============================================
 
@@ -271,16 +404,16 @@ class ProductRepositoryImpl implements ProductRepository {
     bool activeOnly = false,
   }) {
     try {
-      // Use Supabase real-time stream with select to include relations
+      // Use Supabase real-time stream - simple approach
       var stream = _client.from('products').stream(primaryKey: ['id']).map((
         data,
       ) {
         AppLogger.info('Stream received ${data.length} products from Supabase');
 
         var products = data.map((json) {
-          // Try to parse with relations if available
           try {
-            return ProductModel.fromJson(json);
+            final product = ProductModel.fromJson(json);
+            return product;
           } catch (e) {
             AppLogger.error('Error parsing product', e);
             return ProductModel.fromJson(json);
@@ -292,9 +425,6 @@ class ProductRepositoryImpl implements ProductRepository {
         // Apply filters
         if (activeOnly) {
           products = products.where((p) => p.isActive).toList();
-          AppLogger.info(
-            'After activeOnly filter: ${products.length} products',
-          );
         }
         if (categoryId != null) {
           products = products.where((p) => p.categoryId == categoryId).toList();

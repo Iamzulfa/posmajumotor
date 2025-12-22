@@ -196,8 +196,19 @@ final todayExpensesStreamProvider = StreamProvider<List<ExpenseModel>>((ref) {
   if (!SupabaseConfig.isConfigured) {
     return Stream.value([]);
   }
-  final repository = getIt<ExpenseRepository>();
-  return repository.getTodayExpensesStream();
+
+  try {
+    final repository = getIt<ExpenseRepository>();
+    return repository.getTodayExpensesStream().handleError((error) {
+      // Log error but return empty list instead of throwing
+      print('Error in todayExpensesStreamProvider: $error');
+      return [];
+    });
+  } catch (e) {
+    // If repository fails to initialize, return empty stream
+    print('Failed to initialize expense repository: $e');
+    return Stream.value([]);
+  }
 });
 
 /// Real-time expense summary by category stream provider

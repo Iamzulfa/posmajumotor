@@ -51,7 +51,7 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     final syncStatus = taxCalcAsync.when(
       data: (_) => SyncStatus.online,
       loading: () => SyncStatus.syncing,
-      error: (_, __) => SyncStatus.offline,
+      error: (_, _) => SyncStatus.offline,
     );
 
     return Scaffold(

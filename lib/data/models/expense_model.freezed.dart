@@ -33,7 +33,6 @@ mixin _$ExpenseModel {
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt =>
       throw _privateConstructorUsedError; // Relations (optional)
-  @JsonKey(name: 'users')
   UserModel? get creator => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -57,7 +56,7 @@ abstract class $ExpenseModelCopyWith<$Res> {
       @JsonKey(name: 'created_by') String? createdBy,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
-      @JsonKey(name: 'users') UserModel? creator});
+      UserModel? creator});
 
   $UserModelCopyWith<$Res>? get creator;
 }
@@ -155,7 +154,7 @@ abstract class _$$ExpenseModelImplCopyWith<$Res>
       @JsonKey(name: 'created_by') String? createdBy,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
-      @JsonKey(name: 'users') UserModel? creator});
+      UserModel? creator});
 
   @override
   $UserModelCopyWith<$Res>? get creator;
@@ -235,7 +234,7 @@ class _$ExpenseModelImpl extends _ExpenseModel {
       @JsonKey(name: 'created_by') this.createdBy,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
-      @JsonKey(name: 'users') this.creator})
+      this.creator})
       : super._();
 
   factory _$ExpenseModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -264,7 +263,6 @@ class _$ExpenseModelImpl extends _ExpenseModel {
   final DateTime? updatedAt;
 // Relations (optional)
   @override
-  @JsonKey(name: 'users')
   final UserModel? creator;
 
   @override
@@ -323,7 +321,7 @@ abstract class _ExpenseModel extends ExpenseModel {
       @JsonKey(name: 'created_by') final String? createdBy,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
-      @JsonKey(name: 'users') final UserModel? creator}) = _$ExpenseModelImpl;
+      final UserModel? creator}) = _$ExpenseModelImpl;
   const _ExpenseModel._() : super._();
 
   factory _ExpenseModel.fromJson(Map<String, dynamic> json) =
@@ -350,7 +348,6 @@ abstract class _ExpenseModel extends ExpenseModel {
   @JsonKey(name: 'updated_at')
   DateTime? get updatedAt;
   @override // Relations (optional)
-  @JsonKey(name: 'users')
   UserModel? get creator;
   @override
   @JsonKey(ignore: true)

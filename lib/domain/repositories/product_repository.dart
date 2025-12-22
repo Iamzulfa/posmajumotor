@@ -42,8 +42,26 @@ abstract class ProductRepository {
   /// Get all categories
   Future<List<CategoryModel>> getCategories();
 
+  /// Create new category
+  Future<CategoryModel> createCategory(CategoryModel category);
+
+  /// Update existing category
+  Future<CategoryModel> updateCategory(CategoryModel category);
+
+  /// Delete category (soft delete)
+  Future<void> deleteCategory(String id);
+
   /// Get all brands
   Future<List<BrandModel>> getBrands();
+
+  /// Create new brand
+  Future<BrandModel> createBrand(BrandModel brand);
+
+  /// Update existing brand
+  Future<BrandModel> updateBrand(BrandModel brand);
+
+  /// Delete brand (soft delete)
+  Future<void> deleteBrand(String id);
 
   // ============================================
   // STREAM METHODS (Real-time updates)

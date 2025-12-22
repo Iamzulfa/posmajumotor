@@ -5,7 +5,7 @@ import 'package:posfelix/core/utils/responsive_utils.dart';
 class ResponsiveWidget extends StatelessWidget {
   final Widget Function(BuildContext, DeviceType) builder;
 
-  const ResponsiveWidget({required this.builder, Key? key}) : super(key: key);
+  const ResponsiveWidget({required this.builder, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +24,8 @@ class ResponsiveLayout extends StatelessWidget {
     required this.phoneLayout,
     this.tabletLayout,
     this.desktopLayout,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -56,8 +56,8 @@ class ResponsiveContainer extends StatelessWidget {
     this.maxWidth,
     this.padding,
     this.alignment = Alignment.topCenter,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -92,8 +92,8 @@ class ResponsiveGrid extends StatelessWidget {
     this.runSpacing,
     this.crossAxisAlignment = WrapCrossAlignment.start,
     this.mainAxisAlignment = WrapAlignment.start,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -130,8 +130,8 @@ class ResponsivePadding extends StatelessWidget {
     this.phoneValue,
     this.tabletValue,
     this.desktopValue,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -166,8 +166,8 @@ class ResponsiveText extends StatelessWidget {
     this.textAlign,
     this.maxLines,
     this.overflow,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -202,8 +202,8 @@ class ResponsiveSpacing extends StatelessWidget {
     this.tabletHeight,
     this.desktopHeight,
     this.width,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -230,8 +230,8 @@ class ResponsiveDivider extends StatelessWidget {
     this.color,
     this.indent,
     this.endIndent,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -258,8 +258,8 @@ class ResponsiveButton extends StatelessWidget {
     this.style,
     this.isLoading = false,
     this.icon,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -301,8 +301,8 @@ class ResponsiveCard extends StatelessWidget {
     this.color,
     this.shape,
     this.onTap,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

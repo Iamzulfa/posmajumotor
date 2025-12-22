@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_spacing.dart';
 import '../../../config/constants/app_constants.dart';
 import '../../../config/constants/supabase_config.dart';
 import '../../../config/routes/app_routes.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/utils/auto_responsive.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../providers/auth_provider.dart';
 
@@ -53,13 +53,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       }
     } else {
-      // Demo mode - redirect based on email
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) {
-        if (email == 'admin@toko.com') {
-          context.go(AppRoutes.adminMain);
-        } else {
-          context.go(AppRoutes.kasirMain);
+      // Demo mode - validate credentials and redirect
+      const demoCredentials = {
+        'admin@toko.com': 'admin123',
+        'kasir@toko.com': 'kasir123',
+      };
+
+      if (demoCredentials[email] == password) {
+        // Valid demo credentials
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          if (email == 'admin@toko.com') {
+            context.go(AppRoutes.adminMain);
+          } else {
+            context.go(AppRoutes.kasirMain);
+          }
+        }
+      } else {
+        // Invalid demo credentials
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Invalid demo credentials. Please use the provided demo accounts.',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
         }
       }
     }
@@ -87,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: AR.p(24), // Auto-responsive padding
             child: Form(
               key: _formKey,
               child: Column(
@@ -95,20 +115,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildLogo(),
-                  const SizedBox(height: AppSpacing.xxl),
+                  AR.hCompact(32), // Compact vertical spacing
                   _buildEmailField(),
-                  const SizedBox(height: AppSpacing.md),
+                  AR.hCompact(16), // Compact vertical spacing
                   _buildPasswordField(),
-                  const SizedBox(height: AppSpacing.md),
+                  AR.hCompact(16), // Compact vertical spacing
                   _buildRememberMe(),
-                  const SizedBox(height: AppSpacing.lg),
+                  AR.hCompact(24), // Compact vertical spacing
                   _buildLoginButton(authState.isLoading),
-                  const SizedBox(height: AppSpacing.md),
+                  AR.hCompact(16), // Compact vertical spacing
                   _buildForgotPassword(),
-                  const SizedBox(height: AppSpacing.xxl),
+                  AR.hCompact(32), // Compact vertical spacing
                   _buildDemoCredentials(),
                   if (!SupabaseConfig.isConfigured) ...[
-                    const SizedBox(height: AppSpacing.md),
+                    AR.hCompact(16), // Compact vertical spacing
                     _buildOfflineModeWarning(),
                   ],
                 ],
@@ -123,37 +143,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildLogo() {
     return Column(
       children: [
-        Container(
+        AContainer(
           width: 80,
           height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          borderRadius: 16,
+          color: AppColors.primary,
           child: const Center(
-            child: Text(
+            child: AText(
               'M',
-              style: TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              fontSize: 40,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        const Text(
+        AR.hCompact(16), // Compact spacing
+        const AText(
           AppConstants.appName,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
-          ),
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textDark,
         ),
-        const SizedBox(height: AppSpacing.xs),
-        const Text(
+        AR.hCompact(8), // Compact spacing
+        const AText(
           'Kelola toko suku cadang Anda',
-          style: TextStyle(fontSize: 14, color: AppColors.textGray),
+          fontSize: 14,
+          color: AppColors.textGray,
         ),
       ],
     );
@@ -163,15 +178,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const AText(
           'Email',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textDark,
-          ),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textDark,
         ),
-        const SizedBox(height: AppSpacing.sm),
+        AR.hCompact(8), // Compact spacing
         TextFormField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
@@ -182,7 +195,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             filled: true,
             fillColor: AppColors.backgroundLight,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(
+                12.ar,
+              ), // Auto-responsive radius
               borderSide: BorderSide.none,
             ),
           ),
@@ -195,15 +210,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        const AText(
           'Password',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textDark,
-          ),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textDark,
         ),
-        const SizedBox(height: AppSpacing.sm),
+        AR.hCompact(8), // Compact spacing
         TextFormField(
           controller: _passwordController,
           obscureText: _obscurePassword,
@@ -215,7 +228,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             filled: true,
             fillColor: AppColors.backgroundLight,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(
+                12.ar,
+              ), // Auto-responsive radius
               borderSide: BorderSide.none,
             ),
             suffixIcon: IconButton(
@@ -236,22 +251,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: [
         SizedBox(
-          width: 24,
-          height: 24,
+          width: 24.aw, // Auto-responsive width
+          height: 24.ah, // Auto-responsive height
           child: Checkbox(
             value: _rememberMe,
             onChanged: (value) => setState(() => _rememberMe = value ?? false),
             activeColor: AppColors.primary,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(
+                4.ar,
+              ), // Auto-responsive radius
             ),
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        const Text(
-          'Ingat saya',
-          style: TextStyle(fontSize: 14, color: AppColors.textGray),
-        ),
+        AR.w(8), // Auto-responsive horizontal spacing
+        const AText('Ingat saya', fontSize: 14, color: AppColors.textGray),
       ],
     );
   }
@@ -277,26 +291,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildDemoCredentials() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      ),
+    return AContainer(
+      padding: AR.p(16), // Auto-responsive padding
+      borderRadius: 12, // Auto-responsive radius
+      color: AppColors.backgroundLight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const AText(
             'Demo Credentials:',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textGray,
-            ),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textGray,
           ),
-          const SizedBox(height: AppSpacing.sm),
+          AR.hCompact(8), // Compact spacing
           _buildCredentialRow('Admin', 'admin@toko.com', 'admin123'),
-          const SizedBox(height: AppSpacing.xs),
+          AR.h(4), // Auto-responsive spacing
           _buildCredentialRow('Kasir', 'kasir@toko.com', 'kasir123'),
         ],
       ),
@@ -307,20 +317,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: [
         SizedBox(
-          width: 50,
-          child: Text(
-            '$role:',
-            style: const TextStyle(fontSize: 12, color: AppColors.textGray),
-          ),
+          width: 50.aw, // Auto-responsive width
+          child: AText('$role:', fontSize: 12, color: AppColors.textGray),
         ),
         Expanded(
-          child: Text(
+          child: AText(
             '$email / $password',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textDark,
-              fontFamily: 'monospace',
-            ),
+            fontSize: 12,
+            color: AppColors.textDark,
+            style: const TextStyle(fontFamily: 'monospace'),
           ),
         ),
       ],
@@ -328,21 +333,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildOfflineModeWarning() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-      ),
-      child: const Row(
+    return AContainer(
+      padding: AR.p(12), // Auto-responsive padding
+      borderRadius: 8, // Auto-responsive radius
+      color: AppColors.warning.withValues(alpha: 0.1),
+      child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 16),
-          SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
+          Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.warning,
+            size: 16.aw, // Auto-responsive icon size
+          ),
+          AR.w(8), // Auto-responsive spacing
+          const Expanded(
+            child: AText(
               'Mode Offline - Supabase belum dikonfigurasi',
-              style: TextStyle(fontSize: 12, color: AppColors.warning),
+              fontSize: 12,
+              color: AppColors.warning,
             ),
           ),
         ],

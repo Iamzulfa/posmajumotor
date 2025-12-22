@@ -9,6 +9,9 @@ import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/inventory_provider.dart';
 import 'product_form_modal.dart';
+import 'category_form_modal.dart';
+import 'brand_form_modal.dart';
+import 'add_item_selection_modal.dart';
 import 'delete_product_dialog.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
@@ -50,7 +53,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddProductDialog(context),
+        onPressed: () => _showAddItemSelectionModal(context),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -61,13 +64,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final syncStatus = productsAsync.when(
       data: (_) => SyncStatus.online,
       loading: () => SyncStatus.syncing,
-      error: (_, __) => SyncStatus.offline,
+      error: (_, _) => SyncStatus.offline,
     );
 
     final lastSyncText = productsAsync.when(
       data: (_) => 'Real-time',
       loading: () => 'Syncing...',
-      error: (_, __) => 'Error',
+      error: (_, _) => 'Error',
     );
 
     return AppHeader(
@@ -228,7 +231,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ),
         ),
       ),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 
@@ -488,6 +491,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
+  void _showAddItemSelectionModal(BuildContext context) {
+    showAddItemSelectionModal(
+      context,
+      onItemSelected: (AddItemType type) {
+        switch (type) {
+          case AddItemType.product:
+            _showAddProductDialog(context);
+            break;
+          case AddItemType.category:
+            _showAddCategoryDialog(context);
+            break;
+          case AddItemType.brand:
+            _showAddBrandDialog(context);
+            break;
+        }
+      },
+    );
+  }
+
   void _showAddProductDialog(BuildContext context) {
     final categoriesAsync = ref.read(categoriesStreamProvider);
     final brandsAsync = ref.read(brandsStreamProvider);
@@ -499,6 +521,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         }
       });
     });
+  }
+
+  void _showAddCategoryDialog(BuildContext context) {
+    showCategoryFormModal(context);
+  }
+
+  void _showAddBrandDialog(BuildContext context) {
+    showBrandFormModal(context);
   }
 
   void _showEditProductDialog(BuildContext context, ProductModel product) {

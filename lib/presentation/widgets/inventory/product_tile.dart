@@ -125,8 +125,8 @@ class ProductTile extends StatelessWidget {
   Widget _buildTrailing(BuildContext context) {
     return PopupMenuButton(
       itemBuilder: (context) => [
-        PopupMenuItem(child: const Text('Edit'), onTap: onEdit),
-        PopupMenuItem(child: const Text('Delete'), onTap: onDelete),
+        PopupMenuItem(onTap: onEdit, child: const Text('Edit')),
+        PopupMenuItem(onTap: onDelete, child: const Text('Delete')),
       ],
       child: const Icon(Icons.more_vert, color: AppColors.textGray),
     );

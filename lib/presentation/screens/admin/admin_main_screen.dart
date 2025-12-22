@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_spacing.dart';
+import '../../../core/utils/auto_responsive.dart';
 import 'dashboard/dashboard_screen.dart';
 import '../kasir/inventory/inventory_screen.dart';
 import '../kasir/transaction/transaction_screen.dart';
@@ -40,16 +40,16 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            blurRadius: 8.ar, // Auto-responsive blur
+            offset: Offset(0, -2.ah), // Auto-responsive offset
           ),
         ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xs,
-            vertical: AppSpacing.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: 4.aw, // Auto-responsive horizontal padding
+            vertical: 8.ah, // Auto-responsive vertical padding
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -101,11 +101,11 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
 
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(12.ar), // Auto-responsive radius
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
+        padding: EdgeInsets.symmetric(
+          horizontal: 8.aw, // Auto-responsive horizontal padding
+          vertical: 8.ah, // Auto-responsive vertical padding
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -113,16 +113,14 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
             Icon(
               isActive ? activeIcon : icon,
               color: isActive ? AppColors.primary : AppColors.textLight,
-              size: 24,
+              size: 24.aw, // Auto-responsive icon size
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
+            AR.h(4), // Auto-responsive spacing
+            AText(
               label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? AppColors.primary : AppColors.textLight,
-              ),
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              color: isActive ? AppColors.primary : AppColors.textLight,
             ),
           ],
         ),

@@ -21,27 +21,18 @@ InventoryLogModel _$InventoryLogModelFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$InventoryLogModel {
   String get id => throw _privateConstructorUsedError;
-  @JsonKey(name: 'product_id')
   String get productId => throw _privateConstructorUsedError; // Change info
   String get type => throw _privateConstructorUsedError; // IN, OUT, ADJUSTMENT
   int get quantity => throw _privateConstructorUsedError;
-  @JsonKey(name: 'stock_before')
   int get stockBefore => throw _privateConstructorUsedError;
-  @JsonKey(name: 'stock_after')
   int get stockAfter => throw _privateConstructorUsedError; // Reference
-  @JsonKey(name: 'reference_type')
   String? get referenceType => throw _privateConstructorUsedError;
-  @JsonKey(name: 'reference_id')
   String? get referenceId => throw _privateConstructorUsedError;
   String? get reason => throw _privateConstructorUsedError; // Metadata
-  @JsonKey(name: 'created_by')
   String? get createdBy => throw _privateConstructorUsedError;
-  @JsonKey(name: 'created_at')
   DateTime? get createdAt =>
       throw _privateConstructorUsedError; // Relations (optional)
-  @JsonKey(name: 'products')
   ProductModel? get product => throw _privateConstructorUsedError;
-  @JsonKey(name: 'users')
   UserModel? get creator => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -58,18 +49,18 @@ abstract class $InventoryLogModelCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
-      @JsonKey(name: 'product_id') String productId,
+      String productId,
       String type,
       int quantity,
-      @JsonKey(name: 'stock_before') int stockBefore,
-      @JsonKey(name: 'stock_after') int stockAfter,
-      @JsonKey(name: 'reference_type') String? referenceType,
-      @JsonKey(name: 'reference_id') String? referenceId,
+      int stockBefore,
+      int stockAfter,
+      String? referenceType,
+      String? referenceId,
       String? reason,
-      @JsonKey(name: 'created_by') String? createdBy,
-      @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'products') ProductModel? product,
-      @JsonKey(name: 'users') UserModel? creator});
+      String? createdBy,
+      DateTime? createdAt,
+      ProductModel? product,
+      UserModel? creator});
 
   $ProductModelCopyWith<$Res>? get product;
   $UserModelCopyWith<$Res>? get creator;
@@ -193,18 +184,18 @@ abstract class _$$InventoryLogModelImplCopyWith<$Res>
   @useResult
   $Res call(
       {String id,
-      @JsonKey(name: 'product_id') String productId,
+      String productId,
       String type,
       int quantity,
-      @JsonKey(name: 'stock_before') int stockBefore,
-      @JsonKey(name: 'stock_after') int stockAfter,
-      @JsonKey(name: 'reference_type') String? referenceType,
-      @JsonKey(name: 'reference_id') String? referenceId,
+      int stockBefore,
+      int stockAfter,
+      String? referenceType,
+      String? referenceId,
       String? reason,
-      @JsonKey(name: 'created_by') String? createdBy,
-      @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'products') ProductModel? product,
-      @JsonKey(name: 'users') UserModel? creator});
+      String? createdBy,
+      DateTime? createdAt,
+      ProductModel? product,
+      UserModel? creator});
 
   @override
   $ProductModelCopyWith<$Res>? get product;
@@ -299,18 +290,18 @@ class __$$InventoryLogModelImplCopyWithImpl<$Res>
 class _$InventoryLogModelImpl extends _InventoryLogModel {
   const _$InventoryLogModelImpl(
       {required this.id,
-      @JsonKey(name: 'product_id') required this.productId,
+      required this.productId,
       required this.type,
       required this.quantity,
-      @JsonKey(name: 'stock_before') required this.stockBefore,
-      @JsonKey(name: 'stock_after') required this.stockAfter,
-      @JsonKey(name: 'reference_type') this.referenceType,
-      @JsonKey(name: 'reference_id') this.referenceId,
+      required this.stockBefore,
+      required this.stockAfter,
+      this.referenceType,
+      this.referenceId,
       this.reason,
-      @JsonKey(name: 'created_by') this.createdBy,
-      @JsonKey(name: 'created_at') this.createdAt,
-      @JsonKey(name: 'products') this.product,
-      @JsonKey(name: 'users') this.creator})
+      this.createdBy,
+      this.createdAt,
+      this.product,
+      this.creator})
       : super._();
 
   factory _$InventoryLogModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -319,7 +310,6 @@ class _$InventoryLogModelImpl extends _InventoryLogModel {
   @override
   final String id;
   @override
-  @JsonKey(name: 'product_id')
   final String productId;
 // Change info
   @override
@@ -328,33 +318,25 @@ class _$InventoryLogModelImpl extends _InventoryLogModel {
   @override
   final int quantity;
   @override
-  @JsonKey(name: 'stock_before')
   final int stockBefore;
   @override
-  @JsonKey(name: 'stock_after')
   final int stockAfter;
 // Reference
   @override
-  @JsonKey(name: 'reference_type')
   final String? referenceType;
   @override
-  @JsonKey(name: 'reference_id')
   final String? referenceId;
   @override
   final String? reason;
 // Metadata
   @override
-  @JsonKey(name: 'created_by')
   final String? createdBy;
   @override
-  @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 // Relations (optional)
   @override
-  @JsonKey(name: 'products')
   final ProductModel? product;
   @override
-  @JsonKey(name: 'users')
   final UserModel? creator;
 
   @override
@@ -425,20 +407,19 @@ class _$InventoryLogModelImpl extends _InventoryLogModel {
 
 abstract class _InventoryLogModel extends InventoryLogModel {
   const factory _InventoryLogModel(
-          {required final String id,
-          @JsonKey(name: 'product_id') required final String productId,
-          required final String type,
-          required final int quantity,
-          @JsonKey(name: 'stock_before') required final int stockBefore,
-          @JsonKey(name: 'stock_after') required final int stockAfter,
-          @JsonKey(name: 'reference_type') final String? referenceType,
-          @JsonKey(name: 'reference_id') final String? referenceId,
-          final String? reason,
-          @JsonKey(name: 'created_by') final String? createdBy,
-          @JsonKey(name: 'created_at') final DateTime? createdAt,
-          @JsonKey(name: 'products') final ProductModel? product,
-          @JsonKey(name: 'users') final UserModel? creator}) =
-      _$InventoryLogModelImpl;
+      {required final String id,
+      required final String productId,
+      required final String type,
+      required final int quantity,
+      required final int stockBefore,
+      required final int stockAfter,
+      final String? referenceType,
+      final String? referenceId,
+      final String? reason,
+      final String? createdBy,
+      final DateTime? createdAt,
+      final ProductModel? product,
+      final UserModel? creator}) = _$InventoryLogModelImpl;
   const _InventoryLogModel._() : super._();
 
   factory _InventoryLogModel.fromJson(Map<String, dynamic> json) =
@@ -447,37 +428,28 @@ abstract class _InventoryLogModel extends InventoryLogModel {
   @override
   String get id;
   @override
-  @JsonKey(name: 'product_id')
   String get productId;
   @override // Change info
   String get type;
   @override // IN, OUT, ADJUSTMENT
   int get quantity;
   @override
-  @JsonKey(name: 'stock_before')
   int get stockBefore;
   @override
-  @JsonKey(name: 'stock_after')
   int get stockAfter;
   @override // Reference
-  @JsonKey(name: 'reference_type')
   String? get referenceType;
   @override
-  @JsonKey(name: 'reference_id')
   String? get referenceId;
   @override
   String? get reason;
   @override // Metadata
-  @JsonKey(name: 'created_by')
   String? get createdBy;
   @override
-  @JsonKey(name: 'created_at')
   DateTime? get createdAt;
   @override // Relations (optional)
-  @JsonKey(name: 'products')
   ProductModel? get product;
   @override
-  @JsonKey(name: 'users')
   UserModel? get creator;
   @override
   @JsonKey(ignore: true)

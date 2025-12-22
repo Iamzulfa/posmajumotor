@@ -8,6 +8,20 @@ class TaxRepositoryImpl implements TaxRepository {
 
   TaxRepositoryImpl(this._client);
 
+  // Helper method for safe numeric casting
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  // Helper method for safe string casting
+  String _safeToString(dynamic value, [String defaultValue = '']) {
+    if (value == null) return defaultValue;
+    return value.toString();
+  }
+
   @override
   Future<TaxPaymentModel?> getTaxPayment({
     required int month,
@@ -71,7 +85,7 @@ class TaxRepositoryImpl implements TaxRepository {
 
       int totalOmset = 0;
       for (final row in transactionResponse) {
-        totalOmset += (row['total'] as num).toInt();
+        totalOmset += _safeToInt(row['total']);
       }
 
       // Calculate tax (0.5%)
@@ -196,12 +210,12 @@ class TaxRepositoryImpl implements TaxRepository {
         );
       }
 
-      // Process transactions
+      // Process transactions with safe casting
       for (final row in transactionResponse) {
-        final tier = row['tier'] as String;
-        final omset = (row['total'] as num).toInt();
-        final hpp = (row['total_hpp'] as num).toInt();
-        final profit = (row['profit'] as num).toInt();
+        final tier = _safeToString(row['tier'], 'UMUM');
+        final omset = _safeToInt(row['total']);
+        final hpp = _safeToInt(row['total_hpp']);
+        final profit = _safeToInt(row['profit']);
 
         totalOmset += omset;
         totalHpp += hpp;
@@ -216,10 +230,10 @@ class TaxRepositoryImpl implements TaxRepository {
         );
       }
 
-      // Calculate expenses
+      // Calculate expenses with safe casting
       int totalExpenses = 0;
       for (final row in expenseResponse) {
-        totalExpenses += (row['amount'] as num).toInt();
+        totalExpenses += _safeToInt(row['amount']);
       }
 
       final grossProfit = totalOmset - totalHpp;
@@ -283,12 +297,12 @@ class TaxRepositoryImpl implements TaxRepository {
         );
       }
 
-      // Process transactions
+      // Process transactions with safe casting
       for (final row in transactionResponse) {
-        final tier = row['tier'] as String;
-        final omset = (row['total'] as num).toInt();
-        final hpp = (row['total_hpp'] as num).toInt();
-        final profit = (row['profit'] as num).toInt();
+        final tier = _safeToString(row['tier'], 'UMUM');
+        final omset = _safeToInt(row['total']);
+        final hpp = _safeToInt(row['total_hpp']);
+        final profit = _safeToInt(row['profit']);
 
         totalOmset += omset;
         totalHpp += hpp;
@@ -303,10 +317,10 @@ class TaxRepositoryImpl implements TaxRepository {
         );
       }
 
-      // Calculate expenses
+      // Calculate expenses with safe casting
       int totalExpenses = 0;
       for (final row in expenseResponse) {
-        totalExpenses += (row['amount'] as num).toInt();
+        totalExpenses += _safeToInt(row['amount']);
       }
 
       final grossProfit = totalOmset - totalHpp;
@@ -357,7 +371,7 @@ class TaxRepositoryImpl implements TaxRepository {
 
           int totalOmset = 0;
           for (final row in transactions) {
-            totalOmset += (row['total'] as num).toInt();
+            totalOmset += _safeToInt(row['total']);
           }
 
           // Calculate tax (0.5%)
@@ -420,12 +434,12 @@ class TaxRepositoryImpl implements TaxRepository {
             );
           }
 
-          // Process transactions
+          // Process transactions with safe casting
           for (final row in transactions) {
-            final tier = row['tier'] as String;
-            final omset = (row['total'] as num).toInt();
-            final hpp = (row['total_hpp'] as num).toInt();
-            final profit = (row['profit'] as num).toInt();
+            final tier = _safeToString(row['tier'], 'UMUM');
+            final omset = _safeToInt(row['total']);
+            final hpp = _safeToInt(row['total_hpp']);
+            final profit = _safeToInt(row['profit']);
 
             totalOmset += omset;
             totalHpp += hpp;
@@ -454,7 +468,7 @@ class TaxRepositoryImpl implements TaxRepository {
 
           int totalExpenses = 0;
           for (final row in expenseResponse) {
-            totalExpenses += (row['amount'] as num).toInt();
+            totalExpenses += _safeToInt(row['amount']);
           }
 
           final grossProfit = totalOmset - totalHpp;

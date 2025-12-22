@@ -3,6 +3,7 @@ import 'package:posfelix/data/models/user_model.dart';
 import 'package:posfelix/domain/repositories/auth_repository.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'package:posfelix/core/utils/error_handler.dart';
 
 /// Auth state
 class AuthState {
@@ -39,13 +40,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _repository.getCurrentUser();
       state = state.copyWith(user: user, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 
   Future<bool> signIn(String email, String password) async {
     if (_repository == null) {
-      state = state.copyWith(error: 'Supabase not configured');
+      // Supabase not configured - should not be called in demo mode
+      state = state.copyWith(
+        error: 'Layanan autentikasi tidak tersedia dalam mode demo',
+      );
       return false;
     }
 
@@ -55,7 +60,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
       return false;
     }
   }
@@ -68,7 +74,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _repository.signOut();
       state = const AuthState();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final userFriendlyError = ErrorHandler.getErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: userFriendlyError);
     }
   }
 

@@ -21,7 +21,7 @@ class ExpenseModel with _$ExpenseModel {
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
 
     // Relations (optional)
-    @JsonKey(name: 'users') UserModel? creator,
+    UserModel? creator,
   }) = _ExpenseModel;
 
   factory ExpenseModel.fromJson(Map<String, dynamic> json) =>

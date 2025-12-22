@@ -28,12 +28,12 @@ _$ProductModelImpl _$$ProductModelImplFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
-      category: json['categories'] == null
+      category: json['category'] == null
           ? null
-          : CategoryModel.fromJson(json['categories'] as Map<String, dynamic>),
-      brand: json['brands'] == null
+          : CategoryModel.fromJson(json['category'] as Map<String, dynamic>),
+      brand: json['brand'] == null
           ? null
-          : BrandModel.fromJson(json['brands'] as Map<String, dynamic>),
+          : BrandModel.fromJson(json['brand'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
@@ -54,6 +54,6 @@ Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
       'is_active': instance.isActive,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
-      'categories': instance.category,
-      'brands': instance.brand,
+      'category': instance.category,
+      'brand': instance.brand,
     };

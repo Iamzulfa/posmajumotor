@@ -5,10 +5,9 @@ import 'package:flutter/material.dart';
 class SmoothPageTransition extends PageRouteBuilder {
   SmoothPageTransition({
     required Widget child,
-    Duration transitionDuration = const Duration(milliseconds: 250),
+    super.transitionDuration = const Duration(milliseconds: 250),
     Curve curve = Curves.easeOutCubic,
   }) : super(
-         transitionDuration: transitionDuration,
          pageBuilder: (context, animation, secondaryAnimation) => child,
          transitionsBuilder: (context, animation, secondaryAnimation, child) {
            return SlideTransition(
@@ -26,9 +25,8 @@ class SmoothPageTransition extends PageRouteBuilder {
 class FadePageTransition extends PageRouteBuilder {
   FadePageTransition({
     required Widget child,
-    Duration transitionDuration = const Duration(milliseconds: 200),
+    super.transitionDuration = const Duration(milliseconds: 200),
   }) : super(
-         transitionDuration: transitionDuration,
          pageBuilder: (context, animation, secondaryAnimation) => child,
          transitionsBuilder: (context, animation, secondaryAnimation, child) {
            return FadeTransition(opacity: animation, child: child);
@@ -40,9 +38,8 @@ class FadePageTransition extends PageRouteBuilder {
 class ScalePageTransition extends PageRouteBuilder {
   ScalePageTransition({
     required Widget child,
-    Duration transitionDuration = const Duration(milliseconds: 300),
+    super.transitionDuration,
   }) : super(
-         transitionDuration: transitionDuration,
          pageBuilder: (context, animation, secondaryAnimation) => child,
          transitionsBuilder: (context, animation, secondaryAnimation, child) {
            return ScaleTransition(
