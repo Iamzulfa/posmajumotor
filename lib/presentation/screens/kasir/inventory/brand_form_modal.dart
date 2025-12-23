@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../data/models/models.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/error_handler.dart';
@@ -11,8 +12,12 @@ void showBrandFormModal(BuildContext context, {BrandModel? brand}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
+      ),
     ),
     builder: (context) => BrandFormModal(brand: brand),
   );
@@ -149,7 +154,7 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
       ),
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,21 +165,36 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        phoneSize: 18,
+                        tabletSize: 20,
+                        desktopSize: 22,
+                      ),
                       fontWeight: FontWeight.w600,
                       color: AppColors.textDark,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      size: ResponsiveUtils.getResponsiveIconSize(context),
+                    ),
                     onPressed: () => Navigator.pop(context),
                     color: AppColors.textGray,
                   ),
                 ],
               ),
               const Divider(color: AppColors.border),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.lg,
+                  tabletSpacing: AppSpacing.xl,
+                  desktopSpacing: 24,
+                ),
+              ),
 
               // Nama Brand
               _buildTextField(
@@ -182,7 +202,14 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
                 _nameController,
                 'Masukkan nama brand',
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 20,
+                ),
+              ),
 
               // Deskripsi
               _buildTextField(
@@ -191,7 +218,14 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
                 'Deskripsi brand (opsional)',
                 maxLines: 3,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.lg,
+                  tabletSpacing: AppSpacing.xl,
+                  desktopSpacing: 24,
+                ),
+              ),
 
               // Action Buttons
               Align(
@@ -203,24 +237,72 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
                       onPressed: _isLoading
                           ? null
                           : () => Navigator.pop(context),
-                      child: const Text('Batal'),
+                      child: Text(
+                        'Batal',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            phoneSize: 14,
+                            tabletSize: 16,
+                            desktopSize: 18,
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
+                    SizedBox(
+                      width: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        phoneSpacing: AppSpacing.md,
+                        tabletSpacing: AppSpacing.lg,
+                        desktopSpacing: 20,
+                      ),
+                    ),
                     Material(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context) *
+                            0.5,
+                      ),
                       child: InkWell(
                         onTap: _isLoading ? null : _handleSaveBrand,
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getResponsiveBorderRadius(context) *
+                              0.5,
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg,
-                            vertical: AppSpacing.md,
-                          ),
+                          padding:
+                              ResponsiveUtils.getResponsivePaddingCustom(
+                                context,
+                                phoneValue: AppSpacing.lg,
+                                tabletValue: AppSpacing.xl,
+                                desktopValue: 20,
+                              ).copyWith(
+                                top: ResponsiveUtils.getResponsiveSpacing(
+                                  context,
+                                  phoneSpacing: AppSpacing.md,
+                                  tabletSpacing: AppSpacing.lg,
+                                  desktopSpacing: 16,
+                                ),
+                                bottom: ResponsiveUtils.getResponsiveSpacing(
+                                  context,
+                                  phoneSpacing: AppSpacing.md,
+                                  tabletSpacing: AppSpacing.lg,
+                                  desktopSpacing: 16,
+                                ),
+                              ),
                           child: _isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
+                              ? SizedBox(
+                                  width:
+                                      ResponsiveUtils.getResponsiveIconSize(
+                                        context,
+                                      ) *
+                                      0.7,
+                                  height:
+                                      ResponsiveUtils.getResponsiveIconSize(
+                                        context,
+                                      ) *
+                                      0.7,
+                                  child: const CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                       Colors.white,
@@ -229,9 +311,16 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
                                 )
                               : Text(
                                   isEdit ? 'Simpan' : 'Tambah',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
+                                    fontSize:
+                                        ResponsiveUtils.getResponsiveFontSize(
+                                          context,
+                                          phoneSize: 14,
+                                          tabletSize: 16,
+                                          desktopSize: 18,
+                                        ),
                                   ),
                                 ),
                         ),
@@ -240,7 +329,14 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 20,
+                ),
+              ),
             ],
           ),
         ),
@@ -259,36 +355,86 @@ class _BrandFormModalState extends ConsumerState<BrandFormModal> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 12,
+              tabletSize: 14,
+              desktopSize: 16,
+            ),
             fontWeight: FontWeight.w500,
             color: AppColors.textGray,
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        SizedBox(
+          height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: AppSpacing.xs,
+            tabletSpacing: AppSpacing.sm,
+            desktopSpacing: 8,
+          ),
+        ),
         TextField(
           controller: controller,
           maxLines: maxLines,
           enabled: !_isLoading,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.textGray),
+            hintStyle: TextStyle(
+              color: AppColors.textGray,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 14,
+                tabletSize: 16,
+                desktopSize: 18,
+              ),
+            ),
             filled: true,
             fillColor: AppColors.background,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
+            contentPadding:
+                ResponsiveUtils.getResponsivePaddingCustom(
+                  context,
+                  phoneValue: AppSpacing.md,
+                  tabletValue: AppSpacing.lg,
+                  desktopValue: 16,
+                ).copyWith(
+                  top: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: AppSpacing.sm,
+                    tabletSpacing: AppSpacing.md,
+                    desktopSpacing: 12,
+                  ),
+                  bottom: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: AppSpacing.sm,
+                    tabletSpacing: AppSpacing.md,
+                    desktopSpacing: 12,
+                  ),
+                ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),

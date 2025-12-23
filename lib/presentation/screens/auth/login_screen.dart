@@ -6,7 +6,7 @@ import '../../../config/constants/app_constants.dart';
 import '../../../config/constants/supabase_config.dart';
 import '../../../config/routes/app_routes.dart';
 import '../../../core/utils/validators.dart';
-import '../../../core/utils/auto_responsive.dart';
+import '../../../core/utils/responsive_utils.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../providers/auth_provider.dart';
 
@@ -107,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: AR.p(24), // Auto-responsive padding
+            padding: ResponsiveUtils.getResponsivePadding(context),
             child: Form(
               key: _formKey,
               child: Column(
@@ -115,20 +115,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildLogo(),
-                  AR.hCompact(32), // Compact vertical spacing
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 32,
+                      tabletSpacing: 40,
+                      desktopSpacing: 48,
+                    ),
+                  ),
                   _buildEmailField(),
-                  AR.hCompact(16), // Compact vertical spacing
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 16,
+                      tabletSpacing: 20,
+                      desktopSpacing: 24,
+                    ),
+                  ),
                   _buildPasswordField(),
-                  AR.hCompact(16), // Compact vertical spacing
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 16,
+                      tabletSpacing: 20,
+                      desktopSpacing: 24,
+                    ),
+                  ),
                   _buildRememberMe(),
-                  AR.hCompact(24), // Compact vertical spacing
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 24,
+                      tabletSpacing: 30,
+                      desktopSpacing: 36,
+                    ),
+                  ),
                   _buildLoginButton(authState.isLoading),
-                  AR.hCompact(16), // Compact vertical spacing
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 16,
+                      tabletSpacing: 20,
+                      desktopSpacing: 24,
+                    ),
+                  ),
                   _buildForgotPassword(),
-                  AR.hCompact(32), // Compact vertical spacing
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 32,
+                      tabletSpacing: 40,
+                      desktopSpacing: 48,
+                    ),
+                  ),
                   _buildDemoCredentials(),
                   if (!SupabaseConfig.isConfigured) ...[
-                    AR.hCompact(16), // Compact vertical spacing
+                    SizedBox(
+                      height: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        phoneSpacing: 16,
+                        tabletSpacing: 20,
+                        desktopSpacing: 24,
+                      ),
+                    ),
                     _buildOfflineModeWarning(),
                   ],
                 ],
@@ -143,32 +192,81 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildLogo() {
     return Column(
       children: [
-        AContainer(
-          width: 80,
-          height: 80,
-          borderRadius: 16,
-          color: AppColors.primary,
-          child: const Center(
-            child: AText(
+        Container(
+          width: ResponsiveUtils.getResponsiveWidth(
+            context,
+            phoneWidth: 80,
+            tabletWidth: 100,
+            desktopWidth: 120,
+          ),
+          height: ResponsiveUtils.getResponsiveHeight(
+            context,
+            phoneHeight: 80,
+            tabletHeight: 100,
+            desktopHeight: 120,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getResponsiveBorderRadius(context),
+            ),
+          ),
+          child: Center(
+            child: Text(
               'M',
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  phoneSize: 40,
+                  tabletSize: 50,
+                  desktopSize: 60,
+                ),
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
-        AR.hCompact(16), // Compact spacing
-        const AText(
-          AppConstants.appName,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textDark,
+        SizedBox(
+          height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: 16,
+            tabletSpacing: 20,
+            desktopSpacing: 24,
+          ),
         ),
-        AR.hCompact(8), // Compact spacing
-        const AText(
+        Text(
+          AppConstants.appName,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 24,
+              tabletSize: 28,
+              desktopSize: 32,
+            ),
+            fontWeight: FontWeight.bold,
+            color: AppColors.textDark,
+          ),
+        ),
+        SizedBox(
+          height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: 8,
+            tabletSpacing: 10,
+            desktopSpacing: 12,
+          ),
+        ),
+        Text(
           'Kelola toko suku cadang Anda',
-          fontSize: 14,
-          color: AppColors.textGray,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+            color: AppColors.textGray,
+          ),
         ),
       ],
     );
@@ -178,26 +276,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const AText(
+        Text(
           'Email',
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textDark,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+            fontWeight: FontWeight.w500,
+            color: AppColors.textDark,
+          ),
         ),
-        AR.hCompact(8), // Compact spacing
+        SizedBox(
+          height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: 8,
+            tabletSpacing: 10,
+            desktopSpacing: 12,
+          ),
+        ),
         TextFormField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
           validator: AppValidators.validateEmail,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 16,
+              tabletSize: 18,
+              desktopSize: 20,
+            ),
+          ),
           decoration: InputDecoration(
             hintText: 'email@example.com',
             filled: true,
             fillColor: AppColors.backgroundLight,
+            contentPadding: ResponsiveUtils.getResponsivePaddingCustom(
+              context,
+              phoneValue: 16,
+              tabletValue: 18,
+              desktopValue: 20,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(
-                12.ar,
-              ), // Auto-responsive radius
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: BorderSide.none,
             ),
           ),
@@ -210,33 +336,62 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const AText(
+        Text(
           'Password',
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textDark,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+            fontWeight: FontWeight.w500,
+            color: AppColors.textDark,
+          ),
         ),
-        AR.hCompact(8), // Compact spacing
+        SizedBox(
+          height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: 8,
+            tabletSpacing: 10,
+            desktopSpacing: 12,
+          ),
+        ),
         TextFormField(
           controller: _passwordController,
           obscureText: _obscurePassword,
           textInputAction: TextInputAction.done,
           validator: AppValidators.validatePassword,
           onFieldSubmitted: (_) => _handleLogin(),
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 16,
+              tabletSize: 18,
+              desktopSize: 20,
+            ),
+          ),
           decoration: InputDecoration(
             hintText: '••••••••',
             filled: true,
             fillColor: AppColors.backgroundLight,
+            contentPadding: ResponsiveUtils.getResponsivePaddingCustom(
+              context,
+              phoneValue: 16,
+              tabletValue: 18,
+              desktopValue: 20,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(
-                12.ar,
-              ), // Auto-responsive radius
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: BorderSide.none,
             ),
             suffixIcon: IconButton(
               icon: Icon(
                 _obscurePassword ? Icons.visibility_off : Icons.visibility,
                 color: AppColors.textGray,
+                size: ResponsiveUtils.getResponsiveIconSize(context),
               ),
               onPressed: () =>
                   setState(() => _obscurePassword = !_obscurePassword),
@@ -251,21 +406,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: [
         SizedBox(
-          width: 24.aw, // Auto-responsive width
-          height: 24.ah, // Auto-responsive height
+          width: ResponsiveUtils.getResponsiveWidth(
+            context,
+            phoneWidth: 24,
+            tabletWidth: 28,
+            desktopWidth: 32,
+          ),
+          height: ResponsiveUtils.getResponsiveHeight(
+            context,
+            phoneHeight: 24,
+            tabletHeight: 28,
+            desktopHeight: 32,
+          ),
           child: Checkbox(
             value: _rememberMe,
             onChanged: (value) => setState(() => _rememberMe = value ?? false),
             activeColor: AppColors.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(
-                4.ar,
-              ), // Auto-responsive radius
+                ResponsiveUtils.getResponsiveBorderRadius(context) * 0.3,
+              ),
             ),
           ),
         ),
-        AR.w(8), // Auto-responsive horizontal spacing
-        const AText('Ingat saya', fontSize: 14, color: AppColors.textGray),
+        SizedBox(
+          width: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: 8,
+            tabletSpacing: 10,
+            desktopSpacing: 12,
+          ),
+        ),
+        Text(
+          'Ingat saya',
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+            color: AppColors.textGray,
+          ),
+        ),
       ],
     );
   }
@@ -291,22 +474,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildDemoCredentials() {
-    return AContainer(
-      padding: AR.p(16), // Auto-responsive padding
-      borderRadius: 12, // Auto-responsive radius
-      color: AppColors.backgroundLight,
+    return Container(
+      padding: ResponsiveUtils.getResponsivePaddingCustom(
+        context,
+        phoneValue: 16,
+        tabletValue: 20,
+        desktopValue: 24,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AText(
+          Text(
             'Demo Credentials:',
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textGray,
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 12,
+                tabletSize: 14,
+                desktopSize: 16,
+              ),
+              fontWeight: FontWeight.w600,
+              color: AppColors.textGray,
+            ),
           ),
-          AR.hCompact(8), // Compact spacing
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 8,
+              tabletSpacing: 10,
+              desktopSpacing: 12,
+            ),
+          ),
           _buildCredentialRow('Admin', 'admin@toko.com', 'admin123'),
-          AR.h(4), // Auto-responsive spacing
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 4,
+              tabletSpacing: 6,
+              desktopSpacing: 8,
+            ),
+          ),
           _buildCredentialRow('Kasir', 'kasir@toko.com', 'kasir123'),
         ],
       ),
@@ -317,15 +530,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: [
         SizedBox(
-          width: 50.aw, // Auto-responsive width
-          child: AText('$role:', fontSize: 12, color: AppColors.textGray),
+          width: ResponsiveUtils.getResponsiveWidth(
+            context,
+            phoneWidth: 50,
+            tabletWidth: 60,
+            desktopWidth: 70,
+          ),
+          child: Text(
+            '$role:',
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 12,
+                tabletSize: 14,
+                desktopSize: 16,
+              ),
+              color: AppColors.textGray,
+            ),
+          ),
         ),
         Expanded(
-          child: AText(
+          child: Text(
             '$email / $password',
-            fontSize: 12,
-            color: AppColors.textDark,
-            style: const TextStyle(fontFamily: 'monospace'),
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 12,
+                tabletSize: 14,
+                desktopSize: 16,
+              ),
+              color: AppColors.textDark,
+              fontFamily: 'monospace',
+            ),
           ),
         ),
       ],
@@ -333,23 +569,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildOfflineModeWarning() {
-    return AContainer(
-      padding: AR.p(12), // Auto-responsive padding
-      borderRadius: 8, // Auto-responsive radius
-      color: AppColors.warning.withValues(alpha: 0.1),
+    return Container(
+      padding: ResponsiveUtils.getResponsivePaddingCustom(
+        context,
+        phoneValue: 12,
+        tabletValue: 16,
+        desktopValue: 20,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context) * 0.7,
+        ),
+      ),
       child: Row(
         children: [
           Icon(
             Icons.warning_amber_rounded,
             color: AppColors.warning,
-            size: 16.aw, // Auto-responsive icon size
+            size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
           ),
-          AR.w(8), // Auto-responsive spacing
-          const Expanded(
-            child: AText(
+          SizedBox(
+            width: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 8,
+              tabletSpacing: 10,
+              desktopSpacing: 12,
+            ),
+          ),
+          Expanded(
+            child: Text(
               'Mode Offline - Supabase belum dikonfigurasi',
-              fontSize: 12,
-              color: AppColors.warning,
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  phoneSize: 12,
+                  tabletSize: 14,
+                  desktopSize: 16,
+                ),
+                color: AppColors.warning,
+              ),
             ),
           ),
         ],

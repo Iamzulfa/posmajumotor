@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_spacing.dart';
+import '../../../core/utils/responsive_utils.dart';
 import 'inventory/inventory_screen.dart';
 import 'transaction/transaction_screen.dart';
 
@@ -31,17 +32,46 @@ class _KasirMainScreenState extends State<KasirMainScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            blurRadius: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 8,
+              tabletSpacing: 10,
+              desktopSpacing: 12,
+            ),
+            offset: Offset(
+              0,
+              -ResponsiveUtils.getResponsiveSpacing(
+                context,
+                phoneSpacing: 2,
+                tabletSpacing: 3,
+                desktopSpacing: 4,
+              ),
+            ),
           ),
         ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
+          padding:
+              ResponsiveUtils.getResponsivePaddingCustom(
+                context,
+                phoneValue: AppSpacing.lg,
+                tabletValue: AppSpacing.xl,
+                desktopValue: 24,
+              ).copyWith(
+                top: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.sm,
+                  tabletSpacing: AppSpacing.md,
+                  desktopSpacing: AppSpacing.lg,
+                ),
+                bottom: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.sm,
+                  tabletSpacing: AppSpacing.md,
+                  desktopSpacing: AppSpacing.lg,
+                ),
+              ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -75,22 +105,43 @@ class _KasirMainScreenState extends State<KasirMainScreen> {
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _currentIndex = index),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          padding: EdgeInsets.symmetric(
+            vertical: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: AppSpacing.sm,
+              tabletSpacing: AppSpacing.md,
+              desktopSpacing: AppSpacing.lg,
+            ),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 isActive ? activeIcon : icon,
                 color: isActive ? AppColors.primary : AppColors.textLight,
-                size: 24,
+                size: ResponsiveUtils.getResponsiveIconSize(context),
               ),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.xs,
+                  tabletSpacing: AppSpacing.sm,
+                  desktopSpacing: AppSpacing.md,
+                ),
+              ),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    phoneSize: 12,
+                    tabletSize: 14,
+                    desktopSize: 16,
+                  ),
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                   color: isActive ? AppColors.primary : AppColors.textLight,
                 ),

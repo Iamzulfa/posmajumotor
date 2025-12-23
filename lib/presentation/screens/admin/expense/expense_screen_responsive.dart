@@ -10,8 +10,8 @@ import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/expense_provider.dart';
 import 'expense_form_modal.dart';
 
-class ExpenseScreen extends ConsumerWidget {
-  const ExpenseScreen({super.key});
+class ExpenseScreenResponsive extends ConsumerWidget {
+  const ExpenseScreenResponsive({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,12 +42,33 @@ class ExpenseScreen extends ConsumerWidget {
                     lastSyncTime: 'Real-time',
                   ),
                   _buildTotalCard(context, expenses),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: AppSpacing.md,
+                      tabletSpacing: AppSpacing.lg,
+                      desktopSpacing: 20,
+                    ),
+                  ),
                   _buildCategoryBreakdown(context, expenses),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: AppSpacing.md,
+                      tabletSpacing: AppSpacing.lg,
+                      desktopSpacing: 20,
+                    ),
+                  ),
                   _buildSectionTitle(context),
                   _buildExpenseList(context, ref, expenses),
-                  const SizedBox(height: 80),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 80,
+                      tabletSpacing: 90,
+                      desktopSpacing: 100,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -57,14 +78,39 @@ class ExpenseScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline,
-                  size: 48,
+                  size: ResponsiveUtils.getResponsiveIconSize(context) * 2,
                   color: AppColors.error,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text('$error', style: const TextStyle(color: AppColors.error)),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  height: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: AppSpacing.md,
+                    tabletSpacing: AppSpacing.lg,
+                    desktopSpacing: 20,
+                  ),
+                ),
+                Text(
+                  '$error',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 14,
+                      tabletSize: 16,
+                      desktopSize: 18,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: AppSpacing.md,
+                    tabletSpacing: AppSpacing.lg,
+                    desktopSpacing: 20,
+                  ),
+                ),
                 ElevatedButton(
                   onPressed: () => ref.invalidate(todayExpensesStreamProvider),
                   child: const Text('Coba Lagi'),
@@ -78,7 +124,18 @@ class ExpenseScreen extends ConsumerWidget {
         onPressed: () => _showAddExpenseDialog(context, ref),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Tambah', style: TextStyle(color: Colors.white)),
+        label: Text(
+          'Tambah',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -262,7 +319,7 @@ class ExpenseScreen extends ConsumerWidget {
           context,
           phoneSpacing: AppSpacing.md,
           tabletSpacing: AppSpacing.lg,
-          desktopSpacing: 20,
+          desktopSpacing: 16,
         ),
       ),
       padding: ResponsiveUtils.getResponsivePadding(context),
@@ -282,7 +339,7 @@ class ExpenseScreen extends ConsumerWidget {
                   context,
                   phoneValue: AppSpacing.sm,
                   tabletValue: AppSpacing.md,
-                  desktopValue: 16,
+                  desktopValue: 12,
                 ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
@@ -293,7 +350,7 @@ class ExpenseScreen extends ConsumerWidget {
                 child: Icon(
                   _getCategoryIcon(category),
                   color: color,
-                  size: ResponsiveUtils.getResponsiveIconSize(context) * 1.2,
+                  size: ResponsiveUtils.getResponsiveIconSize(context),
                 ),
               ),
               SizedBox(
@@ -301,7 +358,7 @@ class ExpenseScreen extends ConsumerWidget {
                   context,
                   phoneSpacing: AppSpacing.md,
                   tabletSpacing: AppSpacing.lg,
-                  desktopSpacing: 20,
+                  desktopSpacing: 16,
                 ),
               ),
               Expanded(
@@ -321,14 +378,7 @@ class ExpenseScreen extends ConsumerWidget {
                         color: AppColors.textDark,
                       ),
                     ),
-                    SizedBox(
-                      height: ResponsiveUtils.getResponsiveSpacing(
-                        context,
-                        phoneSpacing: 2,
-                        tabletSpacing: 4,
-                        desktopSpacing: 6,
-                      ),
-                    ),
+                    const SizedBox(height: 2),
                     Text(
                       'Rp ${_formatNumber(amount)}',
                       style: TextStyle(
@@ -365,13 +415,11 @@ class ExpenseScreen extends ConsumerWidget {
               context,
               phoneSpacing: AppSpacing.md,
               tabletSpacing: AppSpacing.lg,
-              desktopSpacing: 20,
+              desktopSpacing: 16,
             ),
           ),
           ClipRRect(
-            borderRadius: BorderRadius.circular(
-              ResponsiveUtils.getResponsiveBorderRadius(context) * 0.5,
-            ),
+            borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: percentage,
               backgroundColor: AppColors.secondary,
@@ -439,23 +487,18 @@ class ExpenseScreen extends ConsumerWidget {
   ) {
     if (expenses.isEmpty) {
       return Padding(
-        padding: ResponsiveUtils.getResponsivePaddingCustom(
-          context,
-          phoneValue: AppSpacing.lg,
-          tabletValue: AppSpacing.xl,
-          desktopValue: 24,
-        ),
+        padding: ResponsiveUtils.getResponsivePadding(context),
         child: Center(
           child: Text(
             'Belum ada pengeluaran hari ini',
             style: TextStyle(
+              color: AppColors.textGray,
               fontSize: ResponsiveUtils.getResponsiveFontSize(
                 context,
-                phoneSize: 16,
-                tabletSize: 18,
-                desktopSize: 20,
+                phoneSize: 14,
+                tabletSize: 16,
+                desktopSize: 18,
               ),
-              color: AppColors.textGray,
             ),
           ),
         ),
@@ -465,12 +508,7 @@ class ExpenseScreen extends ConsumerWidget {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: ResponsiveUtils.getResponsivePaddingCustom(
-        context,
-        phoneValue: AppSpacing.md,
-        tabletValue: AppSpacing.lg,
-        desktopValue: AppSpacing.xl,
-      ),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       itemCount: expenses.length,
       itemBuilder: (context, index) =>
           _buildExpenseCard(context, ref, expenses[index]),
@@ -491,18 +529,16 @@ class ExpenseScreen extends ConsumerWidget {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: ResponsiveUtils.getResponsivePaddingCustom(
-          context,
-          phoneValue: AppSpacing.md,
-          tabletValue: AppSpacing.lg,
-          desktopValue: 20,
-        ).copyWith(left: 0, top: 0, bottom: 0),
-        color: AppColors.error,
-        child: Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: ResponsiveUtils.getResponsiveIconSize(context),
+        padding: EdgeInsets.only(
+          right: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: AppSpacing.md,
+            tabletSpacing: AppSpacing.lg,
+            desktopSpacing: 20,
+          ),
         ),
+        color: AppColors.error,
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) => _confirmDelete(context, ref, expense),
       child: Container(
@@ -511,7 +547,7 @@ class ExpenseScreen extends ConsumerWidget {
             context,
             phoneSpacing: AppSpacing.sm,
             tabletSpacing: AppSpacing.md,
-            desktopSpacing: 16,
+            desktopSpacing: 12,
           ),
         ),
         padding: ResponsiveUtils.getResponsivePadding(context),
@@ -529,14 +565,14 @@ class ExpenseScreen extends ConsumerWidget {
                 context,
                 phoneValue: AppSpacing.sm,
                 tabletValue: AppSpacing.md,
-                desktopValue: 16,
+                desktopValue: 12,
               ),
               decoration: BoxDecoration(
                 color: _getCategoryColor(
                   expense.category,
                 ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(
-                  ResponsiveUtils.getResponsiveBorderRadius(context) * 0.7,
+                  ResponsiveUtils.getResponsiveBorderRadius(context) * 0.5,
                 ),
               ),
               child: Icon(
@@ -550,7 +586,7 @@ class ExpenseScreen extends ConsumerWidget {
                 context,
                 phoneSpacing: AppSpacing.md,
                 tabletSpacing: AppSpacing.lg,
-                desktopSpacing: 20,
+                desktopSpacing: 16,
               ),
             ),
             Expanded(
@@ -620,7 +656,7 @@ class ExpenseScreen extends ConsumerWidget {
                 context,
                 phoneSpacing: AppSpacing.sm,
                 tabletSpacing: AppSpacing.md,
-                desktopSpacing: 16,
+                desktopSpacing: 12,
               ),
             ),
             PopupMenuButton(
@@ -634,11 +670,7 @@ class ExpenseScreen extends ConsumerWidget {
                   onTap: () => _confirmDelete(context, ref, expense),
                 ),
               ],
-              child: Icon(
-                Icons.more_vert,
-                color: AppColors.textGray,
-                size: ResponsiveUtils.getResponsiveIconSize(context),
-              ),
+              child: const Icon(Icons.more_vert, color: AppColors.textGray),
             ),
           ],
         ),

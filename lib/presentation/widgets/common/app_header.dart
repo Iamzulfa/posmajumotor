@@ -11,6 +11,8 @@ class AppHeader extends StatelessWidget {
   final String? lastSyncTime;
   final VoidCallback? onLogout;
   final bool showLogout;
+  final bool showBackButton;
+  final VoidCallback? onBackPressed;
 
   const AppHeader({
     super.key,
@@ -19,6 +21,8 @@ class AppHeader extends StatelessWidget {
     this.lastSyncTime,
     this.onLogout,
     this.showLogout = true,
+    this.showBackButton = false,
+    this.onBackPressed,
   });
 
   @override
@@ -31,14 +35,32 @@ class AppHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
+              // Left side: Back button (if needed) + Title
+              Expanded(
+                child: Row(
+                  children: [
+                    if (showBackButton)
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed:
+                            onBackPressed ?? () => Navigator.of(context).pop(),
+                        color: AppColors.textDark,
+                        tooltip: 'Kembali',
+                      ),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              // Right side: Logout button
               if (showLogout)
                 IconButton(
                   icon: const Icon(Icons.logout),

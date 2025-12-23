@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/filter_manager.dart';
 import '../../../../data/models/models.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
+import '../../../widgets/navigation/hamburger_menu.dart';
+import '../../../widgets/filtering/multi_filter_widget.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/inventory_provider.dart';
+import '../filtering/advanced_filter_screen.dart';
 import 'product_form_modal.dart';
 import 'category_form_modal.dart';
 import 'brand_form_modal.dart';
+import 'category_brand_management_screen.dart';
 import 'add_item_selection_modal.dart';
 import 'delete_product_dialog.dart';
 
@@ -25,10 +30,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedCategoryId;
+  FilterManager? _filterManager;
+
+  @override
+  void initState() {
+    super.initState();
+    _filterManager = FilterManager();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _filterManager?.dispose();
     super.dispose();
   }
 
@@ -37,16 +50,30 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     // Watch combined enriched products (no nested AsyncValue)
     final enrichedProductsAsync = ref.watch(enrichedProductsProvider);
 
-    // Watch categories for filter dropdown
-    final categoriesAsync = ref.watch(categoriesStreamProvider);
+    // Initialize filter manager with products when available
+    enrichedProductsAsync.whenData((products) {
+      if (_filterManager != null) {
+        _filterManager!.initialize(products);
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      drawer: HamburgerMenu(
+        currentFilterManager: _filterManager,
+        onFiltersApplied: (filterManager) {
+          setState(() {
+            _filterManager = filterManager;
+          });
+        },
+      ),
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(enrichedProductsAsync),
-            _buildSearchAndFilter(categoriesAsync),
+            _buildManagementButton(),
+            if (_filterManager?.hasActiveFilters == true) _buildActiveFilters(),
+            _buildSearchAndFilter(),
             _buildResultCount(enrichedProductsAsync),
             Expanded(child: _buildProductList(enrichedProductsAsync)),
           ],
@@ -80,9 +107,80 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  Widget _buildSearchAndFilter(
-    AsyncValue<List<CategoryModel>> categoriesAsync,
-  ) {
+  Widget _buildActiveFilters() {
+    if (_filterManager == null || !_filterManager!.hasActiveFilters) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      child: ActiveFiltersWidget(
+        filterManager: _filterManager!,
+        onClearAll: () {
+          setState(() {
+            _filterManager!.clearAllFilters();
+          });
+        },
+        onRemoveFilter: (String filterId) {
+          setState(() {
+            _filterManager!.removeFilter(filterId);
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildManagementButton() {
+    return Padding(
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CategoryBrandManagementScreen(),
+                ),
+              ),
+              icon: Icon(
+                Icons.settings,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.9,
+              ),
+              label: Text(
+                'Kelola Kategori & Brand',
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    phoneSize: 14,
+                    tabletSize: 16,
+                    desktopSize: 18,
+                  ),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: AppColors.textDark,
+                padding: ResponsiveUtils.getResponsivePaddingCustom(
+                  context,
+                  phoneValue: 12,
+                  tabletValue: 14,
+                  desktopValue: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getResponsiveBorderRadius(context),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilter() {
     final filterPadding = ResponsiveUtils.getResponsivePadding(context);
     final filterSpacing = ResponsiveUtils.getResponsiveSpacing(
       context,
@@ -97,97 +195,91 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       desktopValue: 14,
     );
 
-    return categoriesAsync.when(
-      data: (categories) {
-        final categoryNames = ['Semua', ...categories.map((c) => c.name)];
-        final selectedCategoryName = _selectedCategoryId != null
-            ? categories
-                  .firstWhere(
-                    (c) => c.id == _selectedCategoryId,
-                    orElse: () => const CategoryModel(id: '', name: 'Semua'),
-                  )
-                  .name
-            : 'Semua';
-
-        return Padding(
-          padding: filterPadding,
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Cari produk...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    contentPadding: textFieldPadding,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        ResponsiveUtils.getResponsiveBorderRadius(context),
-                      ),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() => _searchQuery = value.toLowerCase());
-                  },
-                ),
-              ),
-              SizedBox(width: filterSpacing),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: ResponsiveUtils.getPercentageWidth(context, 3),
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
+    return Padding(
+      padding: filterPadding,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Cari produk...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: textFieldPadding,
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(
                     ResponsiveUtils.getResponsiveBorderRadius(context),
                   ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedCategoryName,
-                    items: categoryNames
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == 'Semua') {
-                          _selectedCategoryId = null;
-                        } else {
-                          final category = categories.firstWhere(
-                            (c) => c.name == value,
-                          );
-                          _selectedCategoryId = category.id;
-                        }
-                      });
-                    },
-                  ),
+                  borderSide: BorderSide.none,
                 ),
               ),
-            ],
-          ),
-        );
-      },
-      loading: () => Padding(
-        padding: filterPadding,
-        child: const LinearProgressIndicator(),
-      ),
-      error: (error, _) => Padding(
-        padding: filterPadding,
-        child: Text(
-          'Error: $error',
-          style: TextStyle(
-            color: AppColors.error,
-            fontSize: ResponsiveUtils.getResponsiveFontSize(
-              context,
-              phoneSize: 12,
-              tabletSize: 14,
-              desktopSize: 15,
+              onChanged: (value) {
+                setState(() => _searchQuery = value.toLowerCase());
+                if (_filterManager != null) {
+                  _filterManager!.setSearchQuery(value);
+                }
+              },
             ),
           ),
-        ),
+          SizedBox(width: filterSpacing),
+          // Advanced Filter Button
+          Container(
+            decoration: BoxDecoration(
+              color: _filterManager?.hasActiveFilters == true
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.background,
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
+              border: Border.all(
+                color: _filterManager?.hasActiveFilters == true
+                    ? AppColors.primary
+                    : AppColors.border,
+              ),
+            ),
+            child: IconButton(
+              onPressed: _openAdvancedFilter,
+              icon: Stack(
+                children: [
+                  Icon(
+                    Icons.tune,
+                    color: _filterManager?.hasActiveFilters == true
+                        ? AppColors.primary
+                        : AppColors.textGray,
+                  ),
+                  if (_filterManager?.hasActiveFilters == true)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                        child: Text(
+                          '${_filterManager!.activeFilterCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              tooltip: 'Filter Lanjutan',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -203,18 +295,57 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return productsAsync.when(
       data: (products) {
-        final filtered = _filterProducts(products);
+        // Always initialize FilterManager with products
+        if (_filterManager != null) {
+          _filterManager!.initialize(products);
+        }
+
+        // Always use FilterManager if available (for sorting and filtering)
+        final displayProducts = _filterManager != null
+            ? _filterManager!.filteredProducts
+            : _filterProducts(products);
+
+        final filterSummary = _filterManager != null
+            ? _filterManager!.getFilterSummary()
+            : 'Semua Produk';
+
         return Padding(
           padding: resultPadding,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Hasil: ${filtered.length} produk',
-              style: TextStyle(
-                fontSize: resultFontSize,
-                color: AppColors.textGray,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  filterSummary,
+                  style: TextStyle(
+                    fontSize: resultFontSize,
+                    color: AppColors.textGray,
+                  ),
+                ),
               ),
-            ),
+              Container(
+                padding: ResponsiveUtils.getResponsivePaddingCustom(
+                  context,
+                  phoneValue: 6,
+                  tabletValue: 8,
+                  desktopValue: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getResponsiveBorderRadius(context) * 0.5,
+                  ),
+                ),
+                child: Text(
+                  '${displayProducts.length} produk',
+                  style: TextStyle(
+                    fontSize: resultFontSize,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -279,16 +410,63 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return productsAsync.when(
       data: (products) {
-        final filtered = _filterProducts(products);
+        // Always initialize FilterManager with products
+        if (_filterManager != null) {
+          _filterManager!.initialize(products);
+        }
 
-        if (filtered.isEmpty) {
+        // Always use FilterManager if available (for sorting and filtering)
+        final displayProducts = _filterManager != null
+            ? _filterManager!.filteredProducts
+            : _filterProducts(products);
+
+        if (displayProducts.isEmpty) {
           return Center(
-            child: Text(
-              'Tidak ada produk',
-              style: TextStyle(
-                color: AppColors.textGray,
-                fontSize: emptyStateFontSize,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _filterManager?.hasActiveFilters == true
+                      ? Icons.search_off
+                      : Icons.inventory_2_outlined,
+                  size: ResponsiveUtils.getResponsiveIconSize(context) * 3,
+                  color: AppColors.textGray,
+                ),
+                SizedBox(
+                  height: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: 16,
+                    tabletSpacing: 20,
+                    desktopSpacing: 24,
+                  ),
+                ),
+                Text(
+                  _filterManager?.hasActiveFilters == true
+                      ? 'Tidak ada produk yang sesuai filter'
+                      : 'Tidak ada produk',
+                  style: TextStyle(
+                    color: AppColors.textGray,
+                    fontSize: emptyStateFontSize,
+                  ),
+                ),
+                if (_filterManager?.hasActiveFilters == true) ...[
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 8,
+                      tabletSpacing: 10,
+                      desktopSpacing: 12,
+                    ),
+                  ),
+                  Text(
+                    'Coba ubah filter atau kata kunci pencarian',
+                    style: TextStyle(
+                      color: AppColors.textLight,
+                      fontSize: emptyStateFontSize * 0.9,
+                    ),
+                  ),
+                ],
+              ],
             ),
           );
         }
@@ -299,12 +477,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           },
           child: ListView.builder(
             padding: EdgeInsets.symmetric(horizontal: listPadding.left),
-            itemCount: filtered.length,
+            itemCount: displayProducts.length,
             cacheExtent: 500,
             addAutomaticKeepAlives: true,
             addRepaintBoundaries: true,
             itemBuilder: (context, index) {
-              final product = filtered[index];
+              final product = displayProducts[index];
               return RepaintBoundary(
                 key: ValueKey(product.id),
                 child: _buildProductCard(product),
@@ -551,6 +729,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   void _showDeleteDialog(BuildContext context, ProductModel product) {
     showDeleteProductDialog(context, product, ref);
+  }
+
+  void _openAdvancedFilter() async {
+    final result = await Navigator.push<FilterManager>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            AdvancedFilterScreen(existingFilterManager: _filterManager),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _filterManager = result;
+      });
+    }
   }
 
   String _formatNumber(int number) {

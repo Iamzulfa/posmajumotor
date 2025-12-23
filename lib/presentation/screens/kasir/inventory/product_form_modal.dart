@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../data/models/models.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../widgets/common/searchable_dropdown.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/inventory_provider.dart';
 
@@ -16,8 +18,12 @@ void showProductFormModal(
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
+      ),
     ),
     builder: (context) => ProductFormModal(
       categories: categories,
@@ -244,7 +250,7 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
       ),
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,21 +261,36 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        phoneSize: 18,
+                        tabletSize: 20,
+                        desktopSize: 22,
+                      ),
                       fontWeight: FontWeight.w600,
                       color: AppColors.textDark,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      size: ResponsiveUtils.getResponsiveIconSize(context),
+                    ),
                     onPressed: () => Navigator.pop(context),
                     color: AppColors.textGray,
                   ),
                 ],
               ),
               const Divider(color: AppColors.border),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.lg,
+                  tabletSpacing: AppSpacing.xl,
+                  desktopSpacing: 24,
+                ),
+              ),
 
               // Nama Produk
               _buildTextField(
@@ -277,17 +298,115 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 _nameController,
                 'Masukkan nama produk',
               ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Kategori & Brand
-              Row(
-                children: [
-                  Expanded(child: _buildCategoryDropdown()),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(child: _buildBrandDropdown()),
-                ],
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 20,
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
+
+              // Kategori & Brand - Now with searchable dropdowns
+              ResponsiveUtils.isPhone(context)
+                  ? Column(
+                      children: [
+                        SearchableDropdown<CategoryModel>(
+                          label: 'Kategori',
+                          hint: 'Pilih kategori',
+                          items: widget.categories,
+                          selectedItem: widget.categories
+                              .where((c) => c.id == _selectedCategoryId)
+                              .firstOrNull,
+                          itemLabel: (category) => category.name,
+                          itemValue: (category) => category.id,
+                          onChanged: (category) {
+                            setState(() => _selectedCategoryId = category?.id);
+                          },
+                          enabled: !_isLoading,
+                          maxDisplayItems: 15,
+                        ),
+                        SizedBox(
+                          height: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            phoneSpacing: AppSpacing.md,
+                            tabletSpacing: AppSpacing.lg,
+                            desktopSpacing: 16,
+                          ),
+                        ),
+                        SearchableDropdown<BrandModel>(
+                          label: 'Brand',
+                          hint: 'Pilih brand',
+                          items: widget.brands,
+                          selectedItem: widget.brands
+                              .where((b) => b.id == _selectedBrandId)
+                              .firstOrNull,
+                          itemLabel: (brand) => brand.name,
+                          itemValue: (brand) => brand.id,
+                          onChanged: (brand) {
+                            setState(() => _selectedBrandId = brand?.id);
+                          },
+                          enabled: !_isLoading,
+                          maxDisplayItems: 15,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: SearchableDropdown<CategoryModel>(
+                            label: 'Kategori',
+                            hint: 'Pilih kategori',
+                            items: widget.categories,
+                            selectedItem: widget.categories
+                                .where((c) => c.id == _selectedCategoryId)
+                                .firstOrNull,
+                            itemLabel: (category) => category.name,
+                            itemValue: (category) => category.id,
+                            onChanged: (category) {
+                              setState(
+                                () => _selectedCategoryId = category?.id,
+                              );
+                            },
+                            enabled: !_isLoading,
+                            maxDisplayItems: 15,
+                          ),
+                        ),
+                        SizedBox(
+                          width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            phoneSpacing: AppSpacing.md,
+                            tabletSpacing: AppSpacing.lg,
+                            desktopSpacing: 20,
+                          ),
+                        ),
+                        Expanded(
+                          child: SearchableDropdown<BrandModel>(
+                            label: 'Brand',
+                            hint: 'Pilih brand',
+                            items: widget.brands,
+                            selectedItem: widget.brands
+                                .where((b) => b.id == _selectedBrandId)
+                                .firstOrNull,
+                            itemLabel: (brand) => brand.name,
+                            itemValue: (brand) => brand.id,
+                            onChanged: (brand) {
+                              setState(() => _selectedBrandId = brand?.id);
+                            },
+                            enabled: !_isLoading,
+                            maxDisplayItems: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 20,
+                ),
+              ),
 
               // Deskripsi
               _buildTextField(
@@ -296,7 +415,14 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 'Deskripsi produk (opsional)',
                 maxLines: 3,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.lg,
+                  tabletSpacing: AppSpacing.xl,
+                  desktopSpacing: 24,
+                ),
+              ),
 
               // Stok
               _buildTextField(
@@ -305,7 +431,14 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 '0',
                 keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 16,
+                ),
+              ),
 
               // HPP
               _buildTextField(
@@ -314,7 +447,14 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 '0',
                 keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 16,
+                ),
+              ),
 
               // Harga Umum
               _buildTextField(
@@ -323,25 +463,77 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 '0',
                 keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Harga Bengkel
-              _buildTextField(
-                'Harga Bengkel',
-                _hargaBengkelController,
-                '0',
-                keyboardType: TextInputType.number,
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 16,
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
 
-              // Harga Grossir
-              _buildTextField(
-                'Harga Grossir',
-                _hargaGrossirController,
-                '0',
-                keyboardType: TextInputType.number,
+              // Harga Bengkel & Grossir - Responsive layout
+              ResponsiveUtils.isPhone(context)
+                  ? Column(
+                      children: [
+                        _buildTextField(
+                          'Harga Bengkel',
+                          _hargaBengkelController,
+                          '0',
+                          keyboardType: TextInputType.number,
+                        ),
+                        SizedBox(
+                          height: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            phoneSpacing: AppSpacing.md,
+                            tabletSpacing: AppSpacing.lg,
+                            desktopSpacing: 16,
+                          ),
+                        ),
+                        _buildTextField(
+                          'Harga Grossir',
+                          _hargaGrossirController,
+                          '0',
+                          keyboardType: TextInputType.number,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            'Harga Bengkel',
+                            _hargaBengkelController,
+                            '0',
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        SizedBox(
+                          width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            phoneSpacing: AppSpacing.md,
+                            tabletSpacing: AppSpacing.lg,
+                            desktopSpacing: 20,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildTextField(
+                            'Harga Grossir',
+                            _hargaGrossirController,
+                            '0',
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 16,
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
 
               // Min Stock
               _buildTextField(
@@ -350,7 +542,14 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 '5',
                 keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.lg,
+                  tabletSpacing: AppSpacing.xl,
+                  desktopSpacing: 24,
+                ),
+              ),
 
               // Action Buttons
               Align(
@@ -362,24 +561,72 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                       onPressed: _isLoading
                           ? null
                           : () => Navigator.pop(context),
-                      child: const Text('Batal'),
+                      child: Text(
+                        'Batal',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            phoneSize: 14,
+                            tabletSize: 16,
+                            desktopSize: 18,
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
+                    SizedBox(
+                      width: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        phoneSpacing: AppSpacing.md,
+                        tabletSpacing: AppSpacing.lg,
+                        desktopSpacing: 20,
+                      ),
+                    ),
                     Material(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context) *
+                            0.5,
+                      ),
                       child: InkWell(
                         onTap: _isLoading ? null : _handleSaveProduct,
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getResponsiveBorderRadius(context) *
+                              0.5,
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg,
-                            vertical: AppSpacing.md,
-                          ),
+                          padding:
+                              ResponsiveUtils.getResponsivePaddingCustom(
+                                context,
+                                phoneValue: AppSpacing.lg,
+                                tabletValue: AppSpacing.xl,
+                                desktopValue: 20,
+                              ).copyWith(
+                                top: ResponsiveUtils.getResponsiveSpacing(
+                                  context,
+                                  phoneSpacing: AppSpacing.md,
+                                  tabletSpacing: AppSpacing.lg,
+                                  desktopSpacing: 16,
+                                ),
+                                bottom: ResponsiveUtils.getResponsiveSpacing(
+                                  context,
+                                  phoneSpacing: AppSpacing.md,
+                                  tabletSpacing: AppSpacing.lg,
+                                  desktopSpacing: 16,
+                                ),
+                              ),
                           child: _isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
+                              ? SizedBox(
+                                  width:
+                                      ResponsiveUtils.getResponsiveIconSize(
+                                        context,
+                                      ) *
+                                      0.7,
+                                  height:
+                                      ResponsiveUtils.getResponsiveIconSize(
+                                        context,
+                                      ) *
+                                      0.7,
+                                  child: const CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                       Colors.white,
@@ -388,9 +635,16 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                                 )
                               : Text(
                                   isEdit ? 'Simpan' : 'Tambah',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
+                                    fontSize:
+                                        ResponsiveUtils.getResponsiveFontSize(
+                                          context,
+                                          phoneSize: 14,
+                                          tabletSize: 16,
+                                          desktopSize: 18,
+                                        ),
                                   ),
                                 ),
                         ),
@@ -399,7 +653,14 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: AppSpacing.md,
+                  tabletSpacing: AppSpacing.lg,
+                  desktopSpacing: 20,
+                ),
+              ),
             ],
           ),
         ),
@@ -419,37 +680,87 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 12,
+              tabletSize: 14,
+              desktopSize: 16,
+            ),
             fontWeight: FontWeight.w500,
             color: AppColors.textGray,
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        SizedBox(
+          height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            phoneSpacing: AppSpacing.xs,
+            tabletSpacing: AppSpacing.sm,
+            desktopSpacing: 8,
+          ),
+        ),
         TextField(
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
           enabled: !_isLoading,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 14,
+              tabletSize: 16,
+              desktopSize: 18,
+            ),
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.textGray),
+            hintStyle: TextStyle(
+              color: AppColors.textGray,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 14,
+                tabletSize: 16,
+                desktopSize: 18,
+              ),
+            ),
             filled: true,
             fillColor: AppColors.background,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
+            contentPadding:
+                ResponsiveUtils.getResponsivePaddingCustom(
+                  context,
+                  phoneValue: AppSpacing.md,
+                  tabletValue: AppSpacing.lg,
+                  desktopValue: 16,
+                ).copyWith(
+                  top: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: AppSpacing.sm,
+                    tabletSpacing: AppSpacing.md,
+                    desktopSpacing: 12,
+                  ),
+                  bottom: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: AppSpacing.sm,
+                    tabletSpacing: AppSpacing.md,
+                    desktopSpacing: 12,
+                  ),
+                ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
               borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
@@ -458,85 +769,10 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
     );
   }
 
-  Widget _buildCategoryDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Kategori',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textGray,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedCategoryId,
-              isExpanded: true,
-              hint: const Text('Tidak ada'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Tidak ada')),
-                ...widget.categories.map(
-                  (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
-                ),
-              ],
-              onChanged: _isLoading
-                  ? null
-                  : (value) => setState(() => _selectedCategoryId = value),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBrandDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Brand',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textGray,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedBrandId,
-              isExpanded: true,
-              hint: const Text('Tidak ada'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Tidak ada')),
-                ...widget.brands.map(
-                  (b) => DropdownMenuItem(value: b.id, child: Text(b.name)),
-                ),
-              ],
-              onChanged: _isLoading
-                  ? null
-                  : (value) => setState(() => _selectedBrandId = value),
-            ),
-          ),
-        ),
-      ],
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
     );
   }
 }

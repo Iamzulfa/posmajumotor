@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
-import '../../../../config/theme/app_spacing.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
@@ -83,23 +82,42 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
   }
 
   Widget _buildTabBar() {
-    final tabMargin = ResponsiveUtils.getResponsivePadding(context);
-    final tabBorderRadius = ResponsiveUtils.getResponsiveBorderRadius(context);
-
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: tabMargin.left),
+      margin: ResponsiveUtils.getResponsivePadding(context),
       decoration: BoxDecoration(
         color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(tabBorderRadius),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(tabBorderRadius),
+          borderRadius: BorderRadius.circular(
+            ResponsiveUtils.getResponsiveBorderRadius(context),
+          ),
         ),
         labelColor: Colors.white,
         unselectedLabelColor: AppColors.textGray,
+        labelStyle: TextStyle(
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            phoneSize: 14,
+            tabletSize: 16,
+            desktopSize: 18,
+          ),
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            phoneSize: 14,
+            tabletSize: 16,
+            desktopSize: 18,
+          ),
+          fontWeight: FontWeight.normal,
+        ),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
         tabs: const [
@@ -126,16 +144,37 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildMonthSelector(taxState),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                phoneSpacing: 16,
+                tabletSpacing: 20,
+                desktopSpacing: 24,
+              ),
+            ),
             _buildProfitLossCard(taxState, profitLossAsync),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                phoneSpacing: 16,
+                tabletSpacing: 20,
+                desktopSpacing: 24,
+              ),
+            ),
             _buildTierBreakdown(taxState, profitLossAsync),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                phoneSpacing: 24,
+                tabletSpacing: 30,
+                desktopSpacing: 36,
+              ),
+            ),
             Column(
               children: [
                 CustomButton(
@@ -143,7 +182,14 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                   icon: Icons.calendar_today,
                   onPressed: () => _exportDailyPDF(profitLossAsync),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  height: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    phoneSpacing: 12,
+                    tabletSpacing: 16,
+                    desktopSpacing: 20,
+                  ),
+                ),
                 CustomButton(
                   text: 'Laporan Bulanan',
                   icon: Icons.picture_as_pdf,
@@ -166,16 +212,32 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: ResponsiveUtils.getResponsivePaddingCustom(
+        context,
+        phoneValue: 16,
+        tabletValue: 18,
+        desktopValue: 20,
+      ),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: taxState.periodString,
           isExpanded: true,
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 16,
+              tabletSize: 18,
+              desktopSize: 20,
+            ),
+            color: AppColors.textDark,
+          ),
           items: months
               .map((e) => DropdownMenuItem(value: e, child: Text(e)))
               .toList(),
@@ -406,28 +468,55 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
 
   Widget _buildTierBreakdownContent(List<Map<String, dynamic>> tierData) {
     if (tierData.isEmpty) {
-      return const Center(child: Text('Tidak ada data'));
+      return Center(
+        child: Text(
+          'Tidak ada data',
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              phoneSize: 16,
+              tabletSize: 18,
+              desktopSize: 20,
+            ),
+            color: AppColors.textGray,
+          ),
+        ),
+      );
     }
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Breakdown per Tier',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 16,
+                tabletSize: 18,
+                desktopSize: 20,
+              ),
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 16,
+              tabletSpacing: 20,
+              desktopSpacing: 24,
+            ),
+          ),
           ...tierData.map((tier) => _buildExpandableTierRow(tier)),
         ],
       ),
@@ -440,10 +529,19 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     final color = _getTierColor(tier);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          phoneSpacing: 12,
+          tabletSpacing: 16,
+          desktopSpacing: 20,
+        ),
+      ),
       decoration: BoxDecoration(
         color: isExpanded ? color.withValues(alpha: 0.05) : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context) * 0.7,
+        ),
         border: isExpanded
             ? Border.all(color: color.withValues(alpha: 0.3))
             : null,
@@ -456,32 +554,69 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                   ? _expandedTiers.remove(tier)
                   : _expandedTiers.add(tier),
             ),
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getResponsiveBorderRadius(context) * 0.7,
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: ResponsiveUtils.getResponsivePaddingCustom(
+                context,
+                phoneValue: 12,
+                tabletValue: 16,
+                desktopValue: 20,
+              ),
               child: Row(
                 children: [
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: ResponsiveUtils.getResponsiveWidth(
+                      context,
+                      phoneWidth: 8,
+                      tabletWidth: 10,
+                      desktopWidth: 12,
+                    ),
+                    height: ResponsiveUtils.getResponsiveHeight(
+                      context,
+                      phoneHeight: 8,
+                      tabletHeight: 10,
+                      desktopHeight: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(
+                    width: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 12,
+                      tabletSpacing: 16,
+                      desktopSpacing: 20,
+                    ),
+                  ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           tier,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              phoneSize: 14,
+                              tabletSize: 16,
+                              desktopSize: 18,
+                            ),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         Text(
                           '${tierData['transactions']} transaksi',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              phoneSize: 12,
+                              tabletSize: 14,
+                              desktopSize: 16,
+                            ),
                             color: AppColors.textGray,
                           ),
                         ),
@@ -490,13 +625,28 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                   ),
                   Text(
                     'Rp ${_formatNumber(tierData['omset'])}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        phoneSize: 14,
+                        tabletSize: 16,
+                        desktopSize: 18,
+                      ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(
+                    width: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 8,
+                      tabletSpacing: 10,
+                      desktopSpacing: 12,
+                    ),
+                  ),
                   Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
                     color: AppColors.textGray,
-                    size: 20,
+                    size: ResponsiveUtils.getResponsiveIconSize(context),
                   ),
                 ],
               ),
@@ -504,11 +654,26 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
           ),
           if (isExpanded)
             Container(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
+              padding: EdgeInsets.fromLTRB(
+                ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: 24,
+                  tabletSpacing: 32,
+                  desktopSpacing: 40,
+                ),
                 0,
-                AppSpacing.sm,
-                AppSpacing.sm,
+                ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: 12,
+                  tabletSpacing: 16,
+                  desktopSpacing: 20,
+                ),
+                ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: 12,
+                  tabletSpacing: 16,
+                  desktopSpacing: 20,
+                ),
               ),
               child: Column(
                 children: [
@@ -528,22 +693,39 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                     tierData['profit'],
                     AppColors.success,
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 8,
+                      tabletSpacing: 10,
+                      desktopSpacing: 12,
+                    ),
+                  ),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 2,
+                        padding: ResponsiveUtils.getResponsivePaddingCustom(
+                          context,
+                          phoneValue: 8,
+                          tabletValue: 10,
+                          desktopValue: 12,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.success.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveUtils.getResponsiveBorderRadius(context) *
+                                0.3,
+                          ),
                         ),
                         child: Text(
                           'Margin: ${(tierData['margin'] as num).toStringAsFixed(1)}%',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              phoneSize: 12,
+                              tabletSize: 14,
+                              desktopSize: 16,
+                            ),
                             fontWeight: FontWeight.w600,
                             color: AppColors.success,
                           ),
@@ -566,18 +748,38 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
     bool isNegative = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(
+        vertical: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          phoneSpacing: 2,
+          tabletSpacing: 3,
+          desktopSpacing: 4,
+        ),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 13, color: AppColors.textGray),
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 13,
+                tabletSize: 15,
+                desktopSize: 17,
+              ),
+              color: AppColors.textGray,
+            ),
           ),
           Text(
             '${isNegative ? '-' : ''}Rp ${_formatNumber(amount)}',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 13,
+                tabletSize: 15,
+                desktopSize: 17,
+              ),
               fontWeight: FontWeight.w500,
               color: color,
             ),
@@ -616,55 +818,118 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildMonthSelector(taxState),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                phoneSpacing: 16,
+                tabletSpacing: 20,
+                desktopSpacing: 24,
+              ),
+            ),
             Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: ResponsiveUtils.getResponsivePaddingCustom(
+                context,
+                phoneValue: 20,
+                tabletValue: 24,
+                desktopValue: 28,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getResponsiveBorderRadius(context),
+                ),
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Kalkulator PPh Final',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        phoneSize: 18,
+                        tabletSize: 20,
+                        desktopSize: 22,
+                      ),
                       fontWeight: FontWeight.bold,
                       color: AppColors.textDark,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 24,
+                      tabletSpacing: 30,
+                      desktopSpacing: 36,
+                    ),
+                  ),
                   _buildCalcRow('Total Omset Bulan Ini', omset),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 12,
+                      tabletSpacing: 16,
+                      desktopSpacing: 20,
+                    ),
+                  ),
                   _buildCalcRow('Tarif PPh Final', null, suffix: '0.5%'),
-                  const Divider(height: AppSpacing.lg),
+                  Divider(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 24,
+                      tabletSpacing: 30,
+                      desktopSpacing: 36,
+                    ),
+                  ),
                   _buildCalcRow('Estimasi Pajak', taxAmount, isTotal: true),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 24,
+                      tabletSpacing: 30,
+                      desktopSpacing: 36,
+                    ),
+                  ),
                   Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: ResponsiveUtils.getResponsivePadding(context),
                     decoration: BoxDecoration(
                       color: isPaid
                           ? AppColors.success.withValues(alpha: 0.1)
                           : AppColors.warning.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           isPaid ? Icons.check_circle : Icons.info_outline,
                           color: isPaid ? AppColors.success : AppColors.warning,
+                          size: ResponsiveUtils.getResponsiveIconSize(context),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        SizedBox(
+                          width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            phoneSpacing: 12,
+                            tabletSpacing: 16,
+                            desktopSpacing: 20,
+                          ),
+                        ),
                         Expanded(
                           child: Text(
                             'Status: ${isPaid ? 'Sudah Dibayar' : 'Belum Dibayar'}',
                             style: TextStyle(
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                context,
+                                phoneSize: 14,
+                                tabletSize: 16,
+                                desktopSize: 18,
+                              ),
                               fontWeight: FontWeight.w500,
                               color: isPaid
                                   ? AppColors.success
@@ -675,7 +940,14 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      phoneSpacing: 24,
+                      tabletSpacing: 30,
+                      desktopSpacing: 36,
+                    ),
+                  ),
                   if (!isPaid)
                     CustomButton(
                       text: 'Tandai Sudah Bayar',
@@ -685,7 +957,14 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                phoneSpacing: 24,
+                tabletSpacing: 30,
+                desktopSpacing: 36,
+              ),
+            ),
             _buildPaymentHistory(taxState),
           ],
         ),
@@ -709,24 +988,38 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
         : <Map<String, dynamic>>[];
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Riwayat Pembayaran Pajak',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                phoneSize: 16,
+                tabletSize: 18,
+                desktopSize: 20,
+              ),
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 12,
+              tabletSpacing: 16,
+              desktopSpacing: 20,
+            ),
+          ),
           ...history.map((payment) => _buildPaymentHistoryItem(payment)),
         ],
       ),
@@ -736,13 +1029,22 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
   Widget _buildPaymentHistoryItem(Map<String, dynamic> payment) {
     final isPaid = payment['status'] == 'paid';
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          phoneSpacing: 12,
+          tabletSpacing: 16,
+          desktopSpacing: 20,
+        ),
+      ),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       decoration: BoxDecoration(
         color: isPaid
             ? AppColors.success.withValues(alpha: 0.05)
             : AppColors.warning.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context) * 0.7,
+        ),
         border: Border.all(
           color: isPaid
               ? AppColors.success.withValues(alpha: 0.2)
@@ -752,44 +1054,73 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: ResponsiveUtils.getResponsivePaddingCustom(
+              context,
+              phoneValue: 12,
+              tabletValue: 16,
+              desktopValue: 20,
+            ),
             decoration: BoxDecoration(
               color: isPaid
                   ? AppColors.success.withValues(alpha: 0.1)
                   : AppColors.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context) * 0.7,
+              ),
             ),
             child: Icon(
               isPaid ? Icons.check_circle : Icons.schedule,
               color: isPaid ? AppColors.success : AppColors.warning,
-              size: 24,
+              size: ResponsiveUtils.getResponsiveIconSize(context),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(
+            width: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 16,
+              tabletSpacing: 20,
+              desktopSpacing: 24,
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   payment['month'],
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 14,
+                      tabletSize: 16,
+                      desktopSize: 18,
+                    ),
                     fontWeight: FontWeight.w600,
                     color: AppColors.textDark,
                   ),
                 ),
                 Text(
                   'Omset: Rp ${_formatNumber(payment['omset'])}',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 12,
+                      tabletSize: 14,
+                      desktopSize: 16,
+                    ),
                     color: AppColors.textGray,
                   ),
                 ),
                 if (isPaid)
                   Text(
                     'Dibayar: ${payment['paidDate']}',
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        phoneSize: 12,
+                        tabletSize: 14,
+                        desktopSize: 16,
+                      ),
                       color: AppColors.textGray,
                     ),
                   ),
@@ -802,26 +1133,40 @@ class _TaxCenterScreenState extends ConsumerState<TaxCenterScreen>
               Text(
                 'Rp ${_formatNumber(payment['tax'])}',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    phoneSize: 14,
+                    tabletSize: 16,
+                    desktopSize: 18,
+                  ),
                   fontWeight: FontWeight.bold,
                   color: isPaid ? AppColors.success : AppColors.warning,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 2,
+                padding: ResponsiveUtils.getResponsivePaddingCustom(
+                  context,
+                  phoneValue: 6,
+                  tabletValue: 8,
+                  desktopValue: 10,
                 ),
                 decoration: BoxDecoration(
                   color: isPaid
                       ? AppColors.success.withValues(alpha: 0.1)
                       : AppColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getResponsiveBorderRadius(context) * 0.3,
+                  ),
                 ),
                 child: Text(
                   isPaid ? 'Lunas' : 'Pending',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 10,
+                      tabletSize: 12,
+                      desktopSize: 14,
+                    ),
                     fontWeight: FontWeight.w600,
                     color: isPaid ? AppColors.success : AppColors.warning,
                   ),
