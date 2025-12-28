@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/product_repository.dart';
 import 'package:posfelix/core/utils/logger.dart';
+import 'package:posfelix/core/utils/performance_logger.dart';
 
 class ProductRepositoryImpl implements ProductRepository {
   final SupabaseClient _client;
@@ -16,6 +17,8 @@ class ProductRepositoryImpl implements ProductRepository {
     bool activeOnly = false,
   }) async {
     try {
+      PerformanceLogger.start('api_call_getProducts');
+
       var query = _client.from('products').select('''
         *,
         categories(*),
@@ -39,7 +42,12 @@ class ProductRepositoryImpl implements ProductRepository {
       }
 
       final response = await query.order('name');
-      return response.map((json) => ProductModel.fromJson(json)).toList();
+      final result = response
+          .map((json) => ProductModel.fromJson(json))
+          .toList();
+
+      PerformanceLogger.end('api_call_getProducts');
+      return result;
     } catch (e) {
       AppLogger.error('Error fetching products', e);
       rethrow;
@@ -231,13 +239,20 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<List<CategoryModel>> getCategories() async {
     try {
+      PerformanceLogger.start('api_call_getCategories');
+
       final response = await _client
           .from('categories')
           .select()
           .eq('is_active', true)
           .order('name');
 
-      return response.map((json) => CategoryModel.fromJson(json)).toList();
+      final result = response
+          .map((json) => CategoryModel.fromJson(json))
+          .toList();
+
+      PerformanceLogger.end('api_call_getCategories');
+      return result;
     } catch (e) {
       AppLogger.error('Error fetching categories', e);
       rethrow;
@@ -247,13 +262,18 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<List<BrandModel>> getBrands() async {
     try {
+      PerformanceLogger.start('api_call_getBrands');
+
       final response = await _client
           .from('brands')
           .select()
           .eq('is_active', true)
           .order('name');
 
-      return response.map((json) => BrandModel.fromJson(json)).toList();
+      final result = response.map((json) => BrandModel.fromJson(json)).toList();
+
+      PerformanceLogger.end('api_call_getBrands');
+      return result;
     } catch (e) {
       AppLogger.error('Error fetching brands', e);
       rethrow;

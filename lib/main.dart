@@ -10,6 +10,8 @@ import 'injection_container.dart';
 import 'core/utils/logger.dart';
 import 'core/services/hive_adapters.dart';
 import 'core/utils/auto_responsive.dart';
+import 'core/services/offline_service.dart';
+import 'core/services/cache_seeder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,14 @@ void main() async {
   // Initialize in parallel for faster startup
   try {
     await Future.wait([_initializeHive(), _initializeSupabase()]);
+
+    // Initialize offline service
+    final offlineService = OfflineService();
+    await offlineService.initialize();
+    AppLogger.info('Offline Service initialized successfully');
+
+    // Seed initial cache for offline testing
+    await CacheSeeder.seedInitialCache();
 
     await setupServiceLocator();
 

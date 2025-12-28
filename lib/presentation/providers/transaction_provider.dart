@@ -243,6 +243,17 @@ class DateRange {
 
   DateRange({required this.start, required this.end});
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DateRange &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end;
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode;
+
   /// Today
   factory DateRange.today() {
     final now = DateTime.now();
@@ -318,4 +329,25 @@ final tierBreakdownStreamProvider =
         startDate: dateRange?.start,
         endDate: dateRange?.end,
       );
+    });
+
+/// Transaction detail provider - fetch single transaction by ID
+final transactionDetailProvider =
+    FutureProvider.family<TransactionModel?, String>((
+      ref,
+      transactionId,
+    ) async {
+      if (!SupabaseConfig.isConfigured) return null;
+      final repository = getIt<TransactionRepository>();
+      return repository.getTransactionById(transactionId);
+    });
+
+/// Real-time transaction detail stream provider
+final transactionDetailStreamProvider =
+    StreamProvider.family<TransactionModel?, String>((ref, transactionId) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value(null);
+      }
+      final repository = getIt<TransactionRepository>();
+      return repository.getTransactionStream(transactionId);
     });

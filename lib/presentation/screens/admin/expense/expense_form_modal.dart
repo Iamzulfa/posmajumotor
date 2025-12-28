@@ -39,7 +39,7 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
   void initState() {
     super.initState();
 
-    // Initialize categories list
+    // Initialize categories list (must match database constraint)
     _categories = [
       'Gaji Karyawan',
       'Sewa Tempat',
@@ -47,7 +47,6 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
       'Transportasi',
       'Perawatan Kendaraan',
       'Supplies',
-      'Marketing',
       'Lainnya',
     ];
 
@@ -98,7 +97,6 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
         'Transportasi': 'TRANSPORTASI',
         'Perawatan Kendaraan': 'PERAWATAN',
         'Supplies': 'SUPPLIES',
-        'Marketing': 'MARKETING',
         'Lainnya': 'LAINNYA',
       };
 
@@ -135,6 +133,25 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
             );
 
         AppLogger.info('Expense creation requested');
+      }
+
+      // Wait a moment for provider state to update
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Check if there was an error in the provider
+      final providerState = ref.read(expenseListProvider);
+      if (providerState.error != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${providerState.error}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        // Clear the error after showing it
+        ref.read(expenseListProvider.notifier).clearError();
+        return;
       }
 
       if (mounted) {

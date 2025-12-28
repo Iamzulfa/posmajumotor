@@ -127,7 +127,7 @@ CREATE TABLE public.transaction_items (
 -- ============================================
 CREATE TABLE public.expenses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    category TEXT NOT NULL CHECK (category IN ('LISTRIK', 'GAJI', 'PLASTIK', 'MAKAN_SIANG', 'PEMBELIAN_STOK', 'LAINNYA')),
+    category TEXT NOT NULL CHECK (category IN ('GAJI', 'SEWA', 'LISTRIK', 'TRANSPORTASI', 'PERAWATAN', 'SUPPLIES', 'LAINNYA')),
     amount BIGINT NOT NULL CHECK (amount > 0),
     description TEXT,
     expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -139,7 +139,27 @@ CREATE TABLE public.expenses (
 );
 
 -- ============================================
--- 8. INVENTORY LOGS TABLE (Audit Trail)
+-- 8. FIXED EXPENSES TABLE
+-- ============================================
+CREATE TABLE public.fixed_expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    description TEXT,
+    amount BIGINT NOT NULL CHECK (amount > 0),
+    category TEXT NOT NULL CHECK (category IN ('GAJI', 'SEWA', 'LISTRIK', 'TRANSPORTASI', 'PERAWATAN', 'SUPPLIES', 'LAINNYA')),
+    
+    -- Recurrence
+    is_active BOOLEAN DEFAULT true,
+    recurrence_type TEXT NOT NULL CHECK (recurrence_type IN ('MONTHLY', 'WEEKLY', 'DAILY')),
+    
+    -- Metadata
+    created_by UUID REFERENCES public.users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- 9. INVENTORY LOGS TABLE (Audit Trail)
 -- ============================================
 CREATE TABLE public.inventory_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -162,7 +182,7 @@ CREATE TABLE public.inventory_logs (
 );
 
 -- ============================================
--- 9. TAX PAYMENTS TABLE
+-- 10. TAX PAYMENTS TABLE
 -- ============================================
 CREATE TABLE public.tax_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

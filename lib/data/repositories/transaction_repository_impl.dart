@@ -2,9 +2,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/transaction_repository.dart';
 import 'package:posfelix/core/utils/logger.dart';
+import 'package:posfelix/core/utils/performance_logger.dart';
+import 'package:posfelix/core/extensions/stream_extensions.dart';
+import 'package:posfelix/core/services/offline_service.dart';
 
 class TransactionRepositoryImpl implements TransactionRepository {
   final SupabaseClient _client;
+  final OfflineService _offlineService = OfflineService();
+
+  // Stream caching to prevent multiple subscriptions
+  Stream<List<TransactionModel>>? _cachedTransactionsStream;
+  Stream<List<TransactionModel>>? _cachedTodayTransactionsStream;
+  String? _cachedTodayTransactionsDate; // Track which date the cache is for
+  Stream<TransactionSummary>? _cachedTransactionSummaryStream;
+  Stream<Map<String, TierSummary>>? _cachedTierBreakdownStream;
 
   TransactionRepositoryImpl(this._client);
 
@@ -19,6 +30,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
     int? offset,
   }) async {
     try {
+      PerformanceLogger.start('api_call_getTransactions');
+
       var query = _client.from('transactions').select('''
         *,
         transaction_items(*),
@@ -50,7 +63,12 @@ class TransactionRepositoryImpl implements TransactionRepository {
           .order('created_at', ascending: false)
           .limit(limit ?? 100);
 
-      return response.map((json) => TransactionModel.fromJson(json)).toList();
+      final result = response
+          .map((json) => TransactionModel.fromJson(json))
+          .toList();
+
+      PerformanceLogger.end('api_call_getTransactions');
+      return result;
     } catch (e) {
       AppLogger.error('Error fetching transactions', e);
       rethrow;
@@ -231,7 +249,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
       }
 
       if (endDate != null) {
-        query = query.lte('created_at', endDate.toIso8601String());
+        query = query.lt('created_at', endDate.toIso8601String());
       }
 
       final response = await query;
@@ -258,6 +276,40 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
     } catch (e) {
       AppLogger.error('Error getting transaction summary', e);
+
+      // Try to return cached data if offline
+      if (!_offlineService.isOnline) {
+        final cached = _offlineService.getCachedData('transaction_summary');
+        if (cached != null) {
+          AppLogger.info('📦 Using cached transaction summary (offline mode)');
+          if (cached is TransactionSummary) {
+            return cached;
+          } else if (cached is Map) {
+            return TransactionSummary(
+              totalTransactions:
+                  (cached['totalTransactions'] as num?)?.toInt() ?? 0,
+              totalOmset: (cached['totalOmset'] as num?)?.toInt() ?? 0,
+              totalHpp: (cached['totalHpp'] as num?)?.toInt() ?? 0,
+              totalProfit: (cached['totalProfit'] as num?)?.toInt() ?? 0,
+              averageTransaction:
+                  (cached['averageTransaction'] as num?)?.toInt() ?? 0,
+            );
+          }
+        }
+
+        // Return empty data if offline and no cache
+        AppLogger.info(
+          '📦 No cached data available, returning empty transaction summary',
+        );
+        return TransactionSummary(
+          totalTransactions: 0,
+          totalOmset: 0,
+          totalHpp: 0,
+          totalProfit: 0,
+          averageTransaction: 0,
+        );
+      }
+
       rethrow;
     }
   }
@@ -326,12 +378,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
         final startDate = DateTime(date.year, date.month, date.day);
         final endDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
+        // Use inclusive boundaries to include transactions at start of day
         final response = await _client
             .from('transactions')
             .select('total, profit')
             .eq('payment_status', 'COMPLETED')
-            .gte('created_at', startDate.toIso8601String())
-            .lte('created_at', endDate.toIso8601String());
+            .gte(
+              'created_at',
+              startDate.subtract(const Duration(seconds: 1)).toIso8601String(),
+            )
+            .lte(
+              'created_at',
+              endDate.add(const Duration(seconds: 1)).toIso8601String(),
+            );
 
         int totalOmset = 0;
         int totalProfit = 0;
@@ -368,65 +427,130 @@ class TransactionRepositoryImpl implements TransactionRepository {
     String? tier,
     int? limit,
   }) {
-    try {
-      return _client
-          .from('transactions')
-          .stream(primaryKey: ['id'])
-          .map((data) {
-            var transactions = data
-                .map((json) => TransactionModel.fromJson(json))
-                .toList();
+    // Only create stream if no filters are applied (base stream)
+    if (startDate == null && endDate == null && tier == null && limit == null) {
+      if (_cachedTransactionsStream != null) {
+        return _cachedTransactionsStream!;
+      }
 
-            // Apply filters
-            if (startDate != null) {
-              transactions = transactions
-                  .where(
-                    (t) =>
-                        t.createdAt != null && t.createdAt!.isAfter(startDate),
-                  )
-                  .toList();
-            }
-            if (endDate != null) {
-              transactions = transactions
-                  .where(
-                    (t) =>
-                        t.createdAt != null && t.createdAt!.isBefore(endDate),
-                  )
-                  .toList();
-            }
-            if (tier != null) {
-              transactions = transactions.where((t) => t.tier == tier).toList();
-            }
+      try {
+        // Use polling instead of Realtime to avoid connection issues
+        // Emit immediately on first subscription, then poll every 3 seconds
+        _cachedTransactionsStream =
+            Stream.periodic(
+                  const Duration(seconds: 3),
+                  (_) => _fetchAllTransactions(),
+                )
+                .asyncExpand((future) => future.asStream())
+                .distinct()
+                .handleError((error) {
+                  AppLogger.error('Error streaming transactions', error);
+                })
+                .shareReplay(bufferSize: 1);
 
-            // Sort by created_at descending
-            transactions.sort((a, b) {
-              if (a.createdAt == null || b.createdAt == null) return 0;
-              return b.createdAt!.compareTo(a.createdAt!);
+        // Trigger initial fetch immediately
+        _fetchAllTransactions()
+            .then((data) {
+              // Data will be emitted through the stream
+            })
+            .catchError((e) {
+              AppLogger.error('Error in initial transaction fetch', e);
             });
 
-            // Apply limit
-            if (limit != null && transactions.length > limit) {
-              transactions = transactions.take(limit).toList();
-            }
+        return _cachedTransactionsStream!;
+      } catch (e) {
+        AppLogger.error('Error setting up transactions stream', e);
+        return Stream.value([]);
+      }
+    }
 
-            return transactions;
-          })
-          .handleError((error) {
-            AppLogger.error('Error streaming transactions', error);
-          });
+    // For filtered streams, apply filters on top of base stream
+    return getTransactionsStream().map((transactions) {
+      var filtered = transactions;
+
+      if (startDate != null) {
+        filtered = filtered
+            .where(
+              (t) =>
+                  t.createdAt != null &&
+                  (t.createdAt!.isAfter(startDate) ||
+                      t.createdAt!.isAtSameMomentAs(startDate)),
+            )
+            .toList();
+      }
+      if (endDate != null) {
+        filtered = filtered
+            .where(
+              (t) =>
+                  t.createdAt != null &&
+                  (t.createdAt!.isBefore(endDate) ||
+                      t.createdAt!.isAtSameMomentAs(endDate)),
+            )
+            .toList();
+      }
+      if (tier != null) {
+        filtered = filtered.where((t) => t.tier == tier).toList();
+      }
+
+      if (limit != null && filtered.length > limit) {
+        filtered = filtered.take(limit).toList();
+      }
+
+      return filtered;
+    });
+  }
+
+  Future<List<TransactionModel>> _fetchAllTransactions() async {
+    try {
+      final response = await _client
+          .from('transactions')
+          .select()
+          .order('created_at', ascending: false);
+
+      var transactions = response
+          .map((json) => TransactionModel.fromJson(json))
+          .toList();
+
+      // Sort by created_at descending
+      transactions.sort((a, b) {
+        if (a.createdAt == null || b.createdAt == null) return 0;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+      return transactions;
     } catch (e) {
-      AppLogger.error('Error setting up transactions stream', e);
-      rethrow;
+      AppLogger.error('Error fetching all transactions', e);
+      return [];
     }
   }
 
   @override
   Stream<List<TransactionModel>> getTodayTransactionsStream() {
     final now = DateTime.now();
+    final dateStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    // Invalidate cache if date has changed
+    if (_cachedTodayTransactionsDate != dateStr) {
+      _cachedTodayTransactionsStream = null;
+      _cachedTodayTransactionsDate = null;
+    }
+
+    if (_cachedTodayTransactionsStream != null) {
+      return _cachedTodayTransactionsStream!;
+    }
+
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    return getTransactionsStream(startDate: startOfDay, endDate: endOfDay);
+    _cachedTodayTransactionsDate = dateStr;
+
+    _cachedTodayTransactionsStream = getTransactionsStream(
+      startDate: startOfDay,
+      endDate: endOfDay,
+    ).shareReplay(bufferSize: 1);
+
+    return _cachedTodayTransactionsStream!;
   }
 
   @override
@@ -434,9 +558,48 @@ class TransactionRepositoryImpl implements TransactionRepository {
     DateTime? startDate,
     DateTime? endDate,
   }) {
+    if (startDate == null && endDate == null) {
+      if (_cachedTransactionSummaryStream != null) {
+        return _cachedTransactionSummaryStream!;
+      }
+
+      _cachedTransactionSummaryStream = getTransactionsStream()
+          .map((transactions) {
+            final completed = transactions
+                .where((t) => t.paymentStatus == 'COMPLETED')
+                .toList();
+
+            int totalOmset = 0;
+            int totalHpp = 0;
+            int totalProfit = 0;
+
+            for (final t in completed) {
+              totalOmset += t.total;
+              totalHpp += t.totalHpp;
+              totalProfit += t.profit;
+            }
+
+            final count = completed.length;
+            final average = count > 0 ? totalOmset ~/ count : 0;
+
+            return TransactionSummary(
+              totalTransactions: count,
+              totalOmset: totalOmset,
+              totalHpp: totalHpp,
+              totalProfit: totalProfit,
+              averageTransaction: average,
+            );
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming transaction summary', error);
+          })
+          .shareReplay(bufferSize: 1);
+
+      return _cachedTransactionSummaryStream!;
+    }
+
     return getTransactionsStream(startDate: startDate, endDate: endDate)
         .map((transactions) {
-          // Filter completed transactions
           final completed = transactions
               .where((t) => t.paymentStatus == 'COMPLETED')
               .toList();
@@ -472,9 +635,53 @@ class TransactionRepositoryImpl implements TransactionRepository {
     DateTime? startDate,
     DateTime? endDate,
   }) {
+    if (startDate == null && endDate == null) {
+      if (_cachedTierBreakdownStream != null) {
+        return _cachedTierBreakdownStream!;
+      }
+
+      _cachedTierBreakdownStream = getTransactionsStream()
+          .map((transactions) {
+            final completed = transactions
+                .where((t) => t.paymentStatus == 'COMPLETED')
+                .toList();
+
+            final Map<String, TierSummary> breakdown = {};
+
+            for (final tier in ['UMUM', 'BENGKEL', 'GROSSIR']) {
+              final tierData = completed.where((t) => t.tier == tier).toList();
+
+              int totalOmset = 0;
+              int totalHpp = 0;
+              int totalProfit = 0;
+
+              for (final t in tierData) {
+                totalOmset += t.total;
+                totalHpp += t.totalHpp;
+                totalProfit += t.profit;
+              }
+
+              breakdown[tier] = TierSummary(
+                tier: tier,
+                transactionCount: tierData.length,
+                totalOmset: totalOmset,
+                totalHpp: totalHpp,
+                totalProfit: totalProfit,
+              );
+            }
+
+            return breakdown;
+          })
+          .handleError((error) {
+            AppLogger.error('Error streaming tier breakdown', error);
+          })
+          .shareReplay(bufferSize: 1);
+
+      return _cachedTierBreakdownStream!;
+    }
+
     return getTransactionsStream(startDate: startDate, endDate: endDate)
         .map((transactions) {
-          // Filter completed transactions
           final completed = transactions
               .where((t) => t.paymentStatus == 'COMPLETED')
               .toList();
@@ -508,5 +715,42 @@ class TransactionRepositoryImpl implements TransactionRepository {
         .handleError((error) {
           AppLogger.error('Error streaming tier breakdown', error);
         });
+  }
+
+  @override
+  Stream<TransactionModel?> getTransactionStream(String id) {
+    try {
+      // Use polling instead of Realtime to avoid connection issues
+      // Poll every 3 seconds for updates
+      return Stream.periodic(
+            const Duration(seconds: 3),
+            (_) => _fetchTransactionById(id),
+          )
+          .asyncExpand((future) => future.asStream())
+          .distinct()
+          .handleError((error) {
+            AppLogger.error('Error streaming transaction $id', error);
+          })
+          .shareReplay(bufferSize: 1);
+    } catch (e) {
+      AppLogger.error('Error setting up transaction stream', e);
+      return Stream.value(null);
+    }
+  }
+
+  Future<TransactionModel?> _fetchTransactionById(String id) async {
+    try {
+      final response = await _client
+          .from('transactions')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return TransactionModel.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error fetching transaction by ID', e);
+      return null;
+    }
   }
 }

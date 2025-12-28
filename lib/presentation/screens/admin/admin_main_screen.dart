@@ -40,49 +40,56 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8.ar, // Auto-responsive blur
-            offset: Offset(0, -2.ah), // Auto-responsive offset
+            blurRadius: 8.ar,
+            offset: Offset(0, -2.ah),
           ),
         ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: 4.aw, // Auto-responsive horizontal padding
-            vertical: 8.ah, // Auto-responsive vertical padding
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 4.aw, vertical: 8.ah),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavItem(
-                0,
-                Icons.dashboard_outlined,
-                Icons.dashboard,
-                'Dashboard',
+              Flexible(
+                child: _buildNavItem(
+                  0,
+                  Icons.dashboard_outlined,
+                  Icons.dashboard,
+                  'Dashboard',
+                ),
               ),
-              _buildNavItem(
-                1,
-                Icons.inventory_2_outlined,
-                Icons.inventory_2,
-                'Produk',
+              Flexible(
+                child: _buildNavItem(
+                  1,
+                  Icons.inventory_2_outlined,
+                  Icons.inventory_2,
+                  'Produk',
+                ),
               ),
-              _buildNavItem(
-                2,
-                Icons.point_of_sale_outlined,
-                Icons.point_of_sale,
-                'Transaksi',
+              Flexible(
+                child: _buildNavItem(
+                  2,
+                  Icons.point_of_sale_outlined,
+                  Icons.point_of_sale,
+                  'Transaksi',
+                ),
               ),
-              _buildNavItem(
-                3,
-                Icons.account_balance_wallet_outlined,
-                Icons.account_balance_wallet,
-                'Keuangan',
+              Flexible(
+                child: _buildNavItem(
+                  3,
+                  Icons.account_balance_wallet_outlined,
+                  Icons.account_balance_wallet,
+                  'Keuangan',
+                ),
               ),
-              _buildNavItem(
-                4,
-                Icons.receipt_long_outlined,
-                Icons.receipt_long,
-                'Pajak',
+              Flexible(
+                child: _buildNavItem(
+                  4,
+                  Icons.receipt_long_outlined,
+                  Icons.receipt_long,
+                  'Pajak',
+                ),
               ),
             ],
           ),
@@ -99,30 +106,37 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   ) {
     final isActive = _currentIndex == index;
 
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(12.ar), // Auto-responsive radius
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 8.aw, // Auto-responsive horizontal padding
-          vertical: 8.ah, // Auto-responsive vertical padding
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: isActive ? AppColors.primary : AppColors.textLight,
-              size: 24.aw, // Auto-responsive icon size
-            ),
-            AR.h(4), // Auto-responsive spacing
-            AText(
-              label,
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              color: isActive ? AppColors.primary : AppColors.textLight,
-            ),
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _currentIndex = index),
+        borderRadius: BorderRadius.circular(12.ar),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.aw, vertical: 8.ah),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isActive ? activeIcon : icon,
+                color: isActive ? AppColors.primary : AppColors.textLight,
+                size: 24.aw,
+              ),
+              AR.h(4),
+              SizedBox(
+                width: 50.aw,
+                child: AText(
+                  label,
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isActive ? AppColors.primary : AppColors.textLight,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

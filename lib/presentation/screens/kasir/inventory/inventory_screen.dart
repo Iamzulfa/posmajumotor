@@ -197,86 +197,99 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return Padding(
       padding: filterPadding,
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Cari produk...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: AppColors.background,
-                contentPadding: textFieldPadding,
-                border: OutlineInputBorder(
+          // Search and Advanced Filter Row
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Cari produk...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: textFieldPadding,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getResponsiveBorderRadius(context),
+                      ),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() => _searchQuery = value.toLowerCase());
+                    if (_filterManager != null) {
+                      _filterManager!.setSearchQuery(value);
+                    }
+                  },
+                ),
+              ),
+              SizedBox(width: filterSpacing),
+              // Advanced Filter Button
+              Container(
+                decoration: BoxDecoration(
+                  color: _filterManager?.hasActiveFilters == true
+                      ? AppColors.primary.withValues(alpha: 0.1)
+                      : AppColors.background,
                   borderRadius: BorderRadius.circular(
                     ResponsiveUtils.getResponsiveBorderRadius(context),
                   ),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() => _searchQuery = value.toLowerCase());
-                if (_filterManager != null) {
-                  _filterManager!.setSearchQuery(value);
-                }
-              },
-            ),
-          ),
-          SizedBox(width: filterSpacing),
-          // Advanced Filter Button
-          Container(
-            decoration: BoxDecoration(
-              color: _filterManager?.hasActiveFilters == true
-                  ? AppColors.primary.withValues(alpha: 0.1)
-                  : AppColors.background,
-              borderRadius: BorderRadius.circular(
-                ResponsiveUtils.getResponsiveBorderRadius(context),
-              ),
-              border: Border.all(
-                color: _filterManager?.hasActiveFilters == true
-                    ? AppColors.primary
-                    : AppColors.border,
-              ),
-            ),
-            child: IconButton(
-              onPressed: _openAdvancedFilter,
-              icon: Stack(
-                children: [
-                  Icon(
-                    Icons.tune,
+                  border: Border.all(
                     color: _filterManager?.hasActiveFilters == true
                         ? AppColors.primary
-                        : AppColors.textGray,
+                        : AppColors.border,
                   ),
-                  if (_filterManager?.hasActiveFilters == true)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: AppColors.error,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                        child: Text(
-                          '${_filterManager!.activeFilterCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                ),
+                child: IconButton(
+                  onPressed: _openAdvancedFilter,
+                  icon: Stack(
+                    children: [
+                      Icon(
+                        Icons.tune,
+                        color: _filterManager?.hasActiveFilters == true
+                            ? AppColors.primary
+                            : AppColors.textGray,
                       ),
-                    ),
-                ],
+                      if (_filterManager?.hasActiveFilters == true)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: AppColors.error,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                            child: Text(
+                              '${_filterManager!.activeFilterCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  tooltip: 'Filter Lanjutan',
+                ),
               ),
-              tooltip: 'Filter Lanjutan',
+            ],
+          ),
+          SizedBox(
+            height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              phoneSpacing: 8,
+              tabletSpacing: 10,
+              desktopSpacing: 12,
             ),
           ),
         ],

@@ -5,7 +5,8 @@ import '../../../../config/theme/app_spacing.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../data/models/models.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../widgets/common/searchable_dropdown.dart';
+import '../../../widgets/common/modern_category_selector.dart';
+import '../../../widgets/common/modern_brand_selector.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/inventory_provider.dart';
 
@@ -307,24 +308,17 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                 ),
               ),
 
-              // Kategori & Brand - Now with searchable dropdowns
+              // Kategori & Brand - Modern selectors
               ResponsiveUtils.isPhone(context)
                   ? Column(
                       children: [
-                        SearchableDropdown<CategoryModel>(
-                          label: 'Kategori',
-                          hint: 'Pilih kategori',
-                          items: widget.categories,
-                          selectedItem: widget.categories
-                              .where((c) => c.id == _selectedCategoryId)
-                              .firstOrNull,
-                          itemLabel: (category) => category.name,
-                          itemValue: (category) => category.id,
+                        ModernCategorySelector(
+                          categories: widget.categories,
+                          selectedCategoryId: _selectedCategoryId,
                           onChanged: (category) {
                             setState(() => _selectedCategoryId = category?.id);
                           },
                           enabled: !_isLoading,
-                          maxDisplayItems: 15,
                         ),
                         SizedBox(
                           height: ResponsiveUtils.getResponsiveSpacing(
@@ -334,42 +328,28 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                             desktopSpacing: 16,
                           ),
                         ),
-                        SearchableDropdown<BrandModel>(
-                          label: 'Brand',
-                          hint: 'Pilih brand',
-                          items: widget.brands,
-                          selectedItem: widget.brands
-                              .where((b) => b.id == _selectedBrandId)
-                              .firstOrNull,
-                          itemLabel: (brand) => brand.name,
-                          itemValue: (brand) => brand.id,
+                        ModernBrandSelector(
+                          brands: widget.brands,
+                          selectedBrandId: _selectedBrandId,
                           onChanged: (brand) {
                             setState(() => _selectedBrandId = brand?.id);
                           },
                           enabled: !_isLoading,
-                          maxDisplayItems: 15,
                         ),
                       ],
                     )
                   : Row(
                       children: [
                         Expanded(
-                          child: SearchableDropdown<CategoryModel>(
-                            label: 'Kategori',
-                            hint: 'Pilih kategori',
-                            items: widget.categories,
-                            selectedItem: widget.categories
-                                .where((c) => c.id == _selectedCategoryId)
-                                .firstOrNull,
-                            itemLabel: (category) => category.name,
-                            itemValue: (category) => category.id,
+                          child: ModernCategorySelector(
+                            categories: widget.categories,
+                            selectedCategoryId: _selectedCategoryId,
                             onChanged: (category) {
                               setState(
                                 () => _selectedCategoryId = category?.id,
                               );
                             },
                             enabled: !_isLoading,
-                            maxDisplayItems: 15,
                           ),
                         ),
                         SizedBox(
@@ -381,20 +361,13 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
                           ),
                         ),
                         Expanded(
-                          child: SearchableDropdown<BrandModel>(
-                            label: 'Brand',
-                            hint: 'Pilih brand',
-                            items: widget.brands,
-                            selectedItem: widget.brands
-                                .where((b) => b.id == _selectedBrandId)
-                                .firstOrNull,
-                            itemLabel: (brand) => brand.name,
-                            itemValue: (brand) => brand.id,
+                          child: ModernBrandSelector(
+                            brands: widget.brands,
+                            selectedBrandId: _selectedBrandId,
                             onChanged: (brand) {
                               setState(() => _selectedBrandId = brand?.id);
                             },
                             enabled: !_isLoading,
-                            maxDisplayItems: 15,
                           ),
                         ),
                       ],
@@ -766,13 +739,6 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
           ),
         ),
       ],
-    );
-  }
-
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
     );
   }
 }

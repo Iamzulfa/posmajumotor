@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/expense_repository.dart';
 import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
+import 'package:posfelix/core/utils/logger.dart';
 import 'transaction_provider.dart' show DateRange;
 
 /// Expense list state
@@ -121,7 +123,8 @@ class ExpenseListNotifier extends StateNotifier<ExpenseListState> {
         amount: amount,
         description: description,
       );
-      await loadTodayExpenses();
+      // Don't call loadTodayExpenses, let stream handle it
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -137,7 +140,8 @@ class ExpenseListNotifier extends StateNotifier<ExpenseListState> {
         amount: expense.amount,
         description: expense.description,
       );
-      await loadTodayExpenses();
+      // Don't call loadTodayExpenses, let stream handle it
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -155,7 +159,8 @@ class ExpenseListNotifier extends StateNotifier<ExpenseListState> {
         amount: expense.amount,
         description: expense.description,
       );
-      await loadTodayExpenses();
+      // Don't call loadTodayExpenses, let stream handle it
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -167,7 +172,8 @@ class ExpenseListNotifier extends StateNotifier<ExpenseListState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _repository.deleteExpense(id);
-      await loadTodayExpenses();
+      // Don't call loadTodayExpenses, let stream handle it
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -200,16 +206,48 @@ final todayExpensesStreamProvider = StreamProvider<List<ExpenseModel>>((ref) {
   try {
     final repository = getIt<ExpenseRepository>();
     return repository.getTodayExpensesStream().handleError((error) {
-      // Log error but return empty list instead of throwing
-      print('Error in todayExpensesStreamProvider: $error');
+      AppLogger.error('Error in todayExpensesStreamProvider', error);
       return [];
     });
   } catch (e) {
-    // If repository fails to initialize, return empty stream
-    print('Failed to initialize expense repository: $e');
+    AppLogger.error('Failed to initialize expense repository', e);
     return Stream.value([]);
   }
 });
+
+/// Real-time expenses by date stream provider
+final expensesByDateStreamProvider =
+    StreamProvider.family<List<ExpenseModel>, DateTime>((ref, date) {
+      if (!SupabaseConfig.isConfigured) {
+        return Stream.value([]);
+      }
+
+      try {
+        final repository = getIt<ExpenseRepository>();
+        final startDate = DateTime(date.year, date.month, date.day);
+        final endDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+        return repository
+            .getExpensesStream(startDate: startDate, endDate: endDate)
+            .transform(
+              StreamTransformer<
+                List<ExpenseModel>,
+                List<ExpenseModel>
+              >.fromHandlers(
+                handleData: (data, sink) {
+                  sink.add(data);
+                },
+              ),
+            )
+            .handleError((error) {
+              AppLogger.error('Error in expensesByDateStreamProvider', error);
+              return [];
+            });
+      } catch (e) {
+        AppLogger.error('Failed to initialize expense repository', e);
+        return Stream.value([]);
+      }
+    });
 
 /// Real-time expense summary by category stream provider
 final expenseSummaryStreamProvider =

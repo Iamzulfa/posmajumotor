@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/haptic_feedback_utils.dart';
 import '../../../../data/models/models.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/pill_selector.dart';
 import '../../../widgets/common/custom_button.dart';
 import '../../../widgets/common/loading_widget.dart';
+import '../../../widgets/common/post_transaction_receipt_modal.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/transaction_provider.dart';
@@ -392,7 +394,10 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
             icon: Icon(Icons.add_circle, size: iconSize),
             color: product.stock > 0 ? AppColors.primary : AppColors.textGray,
             onPressed: product.stock > 0
-                ? () => ref.read(cartProvider.notifier).addItem(product)
+                ? () {
+                    HapticFeedbackUtils.lightTap();
+                    ref.read(cartProvider.notifier).addItem(product);
+                  }
                 : null,
           ),
         ],
@@ -785,7 +790,10 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
                     text: 'Selesaikan',
                     icon: Icons.check,
                     isLoading: transactionState.isLoading,
-                    onPressed: () => _completeTransaction(cartState),
+                    onPressed: () {
+                      HapticFeedbackUtils.mediumTap();
+                      _completeTransaction(cartState);
+                    },
                   ),
                 ),
               ],
@@ -870,8 +878,10 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
-                onPressed: () =>
-                    ref.read(cartProvider.notifier).removeItem(item.product.id),
+                onPressed: () {
+                  HapticFeedbackUtils.lightTap();
+                  ref.read(cartProvider.notifier).removeItem(item.product.id);
+                },
                 color: AppColors.error,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -958,7 +968,12 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
   Widget _buildQuantityButton(IconData icon, VoidCallback? onPressed) {
     final isEnabled = onPressed != null;
     return InkWell(
-      onTap: onPressed,
+      onTap: () {
+        if (isEnabled) {
+          HapticFeedbackUtils.selectionClick();
+          onPressed.call();
+        }
+      },
       borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.all(4),
@@ -1069,19 +1084,23 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
         .createTransaction(cartState);
 
     if (transaction != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Transaksi berhasil! No: ${transaction.transactionNumber}',
-          ),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      // Success haptic feedback
+      HapticFeedbackUtils.success();
+
+      // Clear cart
       ref.read(cartProvider.notifier).clearCart();
       _notesController.clear();
+      _toggleCart(); // Close cart panel
+
       // Invalidate stream to refresh products (stock updated)
       ref.invalidate(productsStreamProvider);
+
+      // Show receipt modal
+      await showPostTransactionReceiptModal(context, transaction: transaction);
     } else if (mounted) {
+      // Error haptic feedback
+      HapticFeedbackUtils.error();
+
       final error = ref.read(transactionListProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

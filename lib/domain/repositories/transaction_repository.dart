@@ -77,6 +77,9 @@ abstract class TransactionRepository {
     DateTime? startDate,
     DateTime? endDate,
   });
+
+  /// Stream single transaction with real-time updates
+  Stream<TransactionModel?> getTransactionStream(String id);
 }
 
 /// Transaction summary for dashboard
