@@ -288,7 +288,7 @@ class ReceiptWidget extends StatelessWidget {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
 
                 SizedBox(height: AppSpacing.md),
                 Divider(color: AppColors.border),

@@ -11,6 +11,7 @@ import 'core/services/connectivity_service.dart';
 import 'core/services/connectivity_service_impl.dart';
 import 'core/services/offline_sync_manager.dart';
 import 'core/services/offline_sync_manager_impl.dart';
+import 'core/utils/logger.dart';
 
 final getIt = GetIt.instance;
 
@@ -78,6 +79,12 @@ void _setupRepositories() {
   getIt.registerLazySingleton<ExpenseRepository>(
     () => ExpenseRepositoryImpl(getIt<SupabaseClient>()),
   );
+
+  // Fixed Expense Repository
+  getIt.registerLazySingleton<FixedExpenseRepository>(() {
+    AppLogger.info('🔧 Registering FixedExpenseRepository');
+    return FixedExpenseRepositoryImpl(getIt<SupabaseClient>());
+  });
 
   // Tax Repository
   getIt.registerLazySingleton<TaxRepository>(

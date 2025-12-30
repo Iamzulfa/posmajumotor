@@ -1,4 +1,7 @@
+import 'package:hive/hive.dart';
 import 'package:posfelix/data/models/models.dart';
+
+part 'dashboard_repository.g.dart';
 
 /// Dashboard Repository Interface
 abstract class DashboardRepository {
@@ -51,14 +54,30 @@ abstract class DashboardRepository {
 }
 
 /// Dashboard data model
+@HiveType(typeId: 20)
 class DashboardData {
+  @HiveField(0)
   final int totalTransactions;
+
+  @HiveField(1)
   final int totalOmset;
+
+  @HiveField(2)
   final int totalProfit;
+
+  @HiveField(3)
   final int totalExpenses;
+
+  @HiveField(4)
   final int averageTransaction;
+
+  @HiveField(5)
   final Map<String, int> tierBreakdown; // UMUM, BENGKEL, GROSSIR
+
+  @HiveField(6)
   final Map<String, int> paymentMethodBreakdown;
+
+  @HiveField(7)
   final List<TransactionModel>? recentTransactions;
 
   DashboardData({
@@ -74,12 +93,24 @@ class DashboardData {
 }
 
 /// Profit indicator for dashboard
+@HiveType(typeId: 21)
 class ProfitIndicator {
+  @HiveField(0)
   final int grossProfit; // omset - hpp
+
+  @HiveField(1)
   final int netProfit; // omset - hpp - expenses
+
+  @HiveField(2)
   final double profitMargin; // (profit / omset) * 100
+
+  @HiveField(3)
   final int totalOmset;
+
+  @HiveField(4)
   final int totalHpp;
+
+  @HiveField(5)
   final int totalExpenses;
 
   ProfitIndicator({
@@ -93,12 +124,24 @@ class ProfitIndicator {
 }
 
 /// Tax indicator for dashboard
+@HiveType(typeId: 22)
 class TaxIndicator {
+  @HiveField(0)
   final int month;
+
+  @HiveField(1)
   final int year;
+
+  @HiveField(2)
   final int totalOmset;
+
+  @HiveField(3)
   final int taxAmount; // 0.5% of omset
+
+  @HiveField(4)
   final bool isPaid;
+
+  @HiveField(5)
   final DateTime? paidAt;
 
   TaxIndicator({

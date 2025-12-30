@@ -160,7 +160,7 @@ class ReceiptPdfGenerator {
                     pw.SizedBox(height: 6),
                   ],
                 );
-              }).toList(),
+              }),
 
               pw.SizedBox(height: 10),
 

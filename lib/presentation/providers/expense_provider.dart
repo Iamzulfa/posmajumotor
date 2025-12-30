@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/expense_repository.dart';
 import 'package:posfelix/injection_container.dart';
@@ -197,54 +198,90 @@ final expenseListProvider =
 // STREAM PROVIDERS (Real-time updates)
 // ============================================
 
-/// Real-time today's expenses stream provider
-final todayExpensesStreamProvider = StreamProvider<List<ExpenseModel>>((ref) {
+/// Real-time today's expenses stream provider using Supabase Realtime
+final todayExpensesStreamProvider = StreamProvider.autoDispose<List<ExpenseModel>>((
+  ref,
+) {
   if (!SupabaseConfig.isConfigured) {
     return Stream.value([]);
   }
 
   try {
-    final repository = getIt<ExpenseRepository>();
-    return repository.getTodayExpensesStream().handleError((error) {
-      AppLogger.error('Error in todayExpensesStreamProvider', error);
-      return [];
-    });
+    final supabase = Supabase.instance.client;
+    final today = DateTime.now();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+    return supabase
+        .from('expenses')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((rows) {
+          // Filter by today's date on client side
+          final todayExpenses = rows.where((json) {
+            final expenseDate = json['expense_date'] as String?;
+            return expenseDate?.startsWith(todayStr) == true;
+          }).toList();
+
+          AppLogger.info(
+            '🔧 Realtime update: ${todayExpenses.length} today expenses',
+          );
+          return todayExpenses
+              .map((json) => ExpenseModel.fromJson(json))
+              .toList();
+        })
+        .handleError((error) {
+          AppLogger.error('Error in today expenses realtime stream', error);
+          return <ExpenseModel>[];
+        });
   } catch (e) {
-    AppLogger.error('Failed to initialize expense repository', e);
+    AppLogger.error('Failed to initialize today expenses realtime stream', e);
     return Stream.value([]);
   }
 });
 
-/// Real-time expenses by date stream provider
-final expensesByDateStreamProvider =
-    StreamProvider.family<List<ExpenseModel>, DateTime>((ref, date) {
+/// Real-time expenses by date stream provider using Supabase Realtime
+final expensesByDateStreamProvider = StreamProvider.autoDispose
+    .family<List<ExpenseModel>, DateTime>((ref, date) {
       if (!SupabaseConfig.isConfigured) {
         return Stream.value([]);
       }
 
       try {
-        final repository = getIt<ExpenseRepository>();
-        final startDate = DateTime(date.year, date.month, date.day);
-        final endDate = DateTime(date.year, date.month, date.day, 23, 59, 59);
+        final supabase = Supabase.instance.client;
+        final dateStr =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-        return repository
-            .getExpensesStream(startDate: startDate, endDate: endDate)
-            .transform(
-              StreamTransformer<
-                List<ExpenseModel>,
-                List<ExpenseModel>
-              >.fromHandlers(
-                handleData: (data, sink) {
-                  sink.add(data);
-                },
-              ),
-            )
+        return supabase
+            .from('expenses')
+            .stream(primaryKey: ['id'])
+            .order('created_at', ascending: false)
+            .map((rows) {
+              // Filter by selected date on client side
+              final dateExpenses = rows.where((json) {
+                final expenseDate = json['expense_date'] as String?;
+                return expenseDate?.startsWith(dateStr) == true;
+              }).toList();
+
+              AppLogger.info(
+                '🔧 Realtime update: ${dateExpenses.length} expenses for ${date.day}/${date.month}',
+              );
+              return dateExpenses
+                  .map((json) => ExpenseModel.fromJson(json))
+                  .toList();
+            })
             .handleError((error) {
-              AppLogger.error('Error in expensesByDateStreamProvider', error);
-              return [];
+              AppLogger.error(
+                'Error in expenses by date realtime stream',
+                error,
+              );
+              return <ExpenseModel>[];
             });
       } catch (e) {
-        AppLogger.error('Failed to initialize expense repository', e);
+        AppLogger.error(
+          'Failed to initialize expenses by date realtime stream',
+          e,
+        );
         return Stream.value([]);
       }
     });

@@ -260,9 +260,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
       );
 
       // Use polling instead of Realtime to avoid connection issues
-      // Poll every 5 seconds for updates
+      // Poll every 30 seconds for updates (reduced from 5 seconds)
       return Stream.periodic(
-        const Duration(seconds: 5),
+        const Duration(seconds: 30),
         (_) => _fetchInitialDashboardData(startDate, endDate),
       ).asyncExpand((future) => future.asStream()).distinct().handleError(
         (error) {
@@ -347,6 +347,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
 
       // Calculate totals
       int totalOmset = 0;
+      int totalHpp = 0; // FIX: Calculate HPP from transactions
       int totalProfit = 0;
       int totalExpenses = 0;
 
@@ -361,12 +362,15 @@ class DashboardRepositoryImpl implements DashboardRepository {
       // Process transactions (use completed only)
       for (final row in completedTransactions) {
         final omset = (row['total'] as num).toInt();
-        final profit = (row['profit'] as num).toInt();
+        final hpp = (row['total_hpp'] as num)
+            .toInt(); // FIX: Get HPP from transaction
         final tier = row['tier'] as String;
         final paymentMethod = row['payment_method'] as String;
 
         totalOmset += omset;
-        totalProfit += profit;
+        totalHpp += hpp; // FIX: Add HPP to total
+        // FIX: Calculate profit as omset - hpp (before expenses)
+        totalProfit += (omset - hpp);
 
         tierBreakdown[tier] = (tierBreakdown[tier] ?? 0) + omset;
         paymentMethodBreakdown[paymentMethod] =
@@ -378,27 +382,67 @@ class DashboardRepositoryImpl implements DashboardRepository {
         totalExpenses += (row['amount'] as num).toInt();
       }
 
+      // Add real fixed expenses to total expenses for dashboard calculation
+      try {
+        final fixedExpenseResponse = await _client
+            .from('fixed_expenses')
+            .select('amount')
+            .eq('is_active', true);
+
+        int totalFixedExpenses = 0;
+        for (final row in fixedExpenseResponse) {
+          totalFixedExpenses += (row['amount'] as num).toInt();
+        }
+
+        // Calculate daily portion of monthly fixed expenses
+        final fixedExpensesDaily = totalFixedExpenses > 0
+            ? (totalFixedExpenses / 30).round()
+            : 0;
+
+        totalExpenses += fixedExpensesDaily;
+
+        AppLogger.info(
+          '💡 Fixed expenses: Monthly=Rp ${_formatNumber(totalFixedExpenses)}, Daily=Rp ${_formatNumber(fixedExpensesDaily)}',
+        );
+      } catch (e) {
+        AppLogger.error('Error fetching fixed expenses for dashboard', e);
+        // Continue without fixed expenses if there's an error
+      }
+
       final count = completedTransactions.length;
       final average = count > 0 ? totalOmset ~/ count : 0;
+
+      // FIX: Final profit calculation = gross profit - expenses
+      final netProfit = totalProfit - totalExpenses;
 
       final dashboardData = DashboardData(
         totalTransactions: count,
         totalOmset: totalOmset,
-        totalProfit: totalProfit,
+        totalProfit: netProfit, // FIX: Use net profit (after expenses)
         totalExpenses: totalExpenses,
         averageTransaction: average,
         tierBreakdown: tierBreakdown,
         paymentMethodBreakdown: paymentMethodBreakdown,
       );
 
-      // Cache for offline use
+      // Cache for offline use (convert to JSON to avoid Hive adapter issues)
+      final dashboardJson = {
+        'totalTransactions': dashboardData.totalTransactions,
+        'totalOmset': dashboardData.totalOmset,
+        'totalProfit': dashboardData.totalProfit,
+        'totalExpenses': dashboardData.totalExpenses,
+        'averageTransaction': dashboardData.averageTransaction,
+        'tierBreakdown': dashboardData.tierBreakdown,
+        'paymentMethodBreakdown': dashboardData.paymentMethodBreakdown,
+      };
+
       await _offlineService.cacheData(
         'dashboard_data_${startDate.toIso8601String()}',
-        dashboardData,
+        dashboardJson,
       );
 
       AppLogger.info(
-        '📥 Initial dashboard data loaded - Transactions: $count, Omset: $totalOmset, Expenses: $totalExpenses',
+        '📥 Initial dashboard data loaded - Transactions: $count, Omset: $totalOmset, HPP: $totalHpp, Expenses: $totalExpenses, Net Profit: $netProfit',
       );
 
       return dashboardData;
@@ -693,5 +737,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
         paidAt: null,
       );
     }
+  }
+
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 }

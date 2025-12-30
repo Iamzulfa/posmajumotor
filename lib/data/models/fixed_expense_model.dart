@@ -36,8 +36,7 @@ class FixedExpenseModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
+    final json = <String, dynamic>{
       'name': name,
       'description': description,
       'amount': amount,
@@ -47,5 +46,36 @@ class FixedExpenseModel {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+
+    // Only include id if it's not empty (for updates)
+    if (id.isNotEmpty) {
+      json['id'] = id;
+    }
+
+    return json;
+  }
+
+  FixedExpenseModel copyWith({
+    String? id,
+    String? name,
+    String? description,
+    int? amount,
+    String? category,
+    bool? isActive,
+    String? recurrenceType,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return FixedExpenseModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      category: category ?? this.category,
+      isActive: isActive ?? this.isActive,
+      recurrenceType: recurrenceType ?? this.recurrenceType,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

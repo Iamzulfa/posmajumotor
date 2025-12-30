@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async'; // FIX: Add Timer import
 import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/utils/filter_manager.dart';
@@ -29,8 +30,8 @@ class InventoryScreen extends ConsumerStatefulWidget {
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String? _selectedCategoryId;
   FilterManager? _filterManager;
+  Timer? _debounceTimer; // FIX: Add debounce timer
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void dispose() {
     _searchController.dispose();
     _filterManager?.dispose();
+    _debounceTimer?.cancel(); // FIX: Cancel timer on dispose
     super.dispose();
   }
 
@@ -219,10 +221,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     ),
                   ),
                   onChanged: (value) {
+                    // FIX: Direct search like transaction screen - no debouncing for immediate filtering
                     setState(() => _searchQuery = value.toLowerCase());
-                    if (_filterManager != null) {
-                      _filterManager!.setSearchQuery(value);
-                    }
+                    // Don't use FilterManager for search, handle it directly in build methods
+                  },
+                  onSubmitted: (value) {
+                    // Keep this for consistency but search is already applied
+                    setState(() => _searchQuery = value.toLowerCase());
                   },
                 ),
               ),
@@ -313,14 +318,43 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           _filterManager!.initialize(products);
         }
 
-        // Always use FilterManager if available (for sorting and filtering)
-        final displayProducts = _filterManager != null
-            ? _filterManager!.filteredProducts
-            : _filterProducts(products);
+        // FIX: Apply search query directly to products first, then use FilterManager for advanced filters
+        var searchFiltered = products;
+        if (_searchQuery.isNotEmpty) {
+          searchFiltered = products
+              .where(
+                (p) =>
+                    p.name.toLowerCase().contains(_searchQuery) ||
+                    (p.sku?.toLowerCase().contains(_searchQuery) ?? false) ||
+                    (p.category?.name.toLowerCase().contains(_searchQuery) ??
+                        false) ||
+                    (p.brand?.name.toLowerCase().contains(_searchQuery) ??
+                        false),
+              )
+              .toList();
+        }
 
-        final filterSummary = _filterManager != null
-            ? _filterManager!.getFilterSummary()
-            : 'Semua Produk';
+        // Then apply FilterManager filters (excluding search since we handle it above)
+        final displayProducts = _filterManager != null
+            ? _filterManager!.applyFiltersToProducts(
+                searchFiltered,
+                excludeSearch: true,
+              )
+            : searchFiltered;
+
+        // Build filter summary
+        String filterSummary;
+        if (_searchQuery.isNotEmpty &&
+            _filterManager?.hasActiveFilters == true) {
+          filterSummary =
+              'Pencarian: "$_searchQuery" + ${_filterManager!.activeFilterCount} filter';
+        } else if (_searchQuery.isNotEmpty) {
+          filterSummary = 'Pencarian: "$_searchQuery"';
+        } else if (_filterManager?.hasActiveFilters == true) {
+          filterSummary = _filterManager!.getFilterSummary();
+        } else {
+          filterSummary = 'Semua Produk';
+        }
 
         return Padding(
           padding: resultPadding,
@@ -379,28 +413,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  List<ProductModel> _filterProducts(List<ProductModel> products) {
-    var result = products;
-
-    if (_searchQuery.isNotEmpty) {
-      result = result
-          .where(
-            (p) =>
-                p.name.toLowerCase().contains(_searchQuery) ||
-                (p.sku?.toLowerCase().contains(_searchQuery) ?? false),
-          )
-          .toList();
-    }
-
-    if (_selectedCategoryId != null) {
-      result = result
-          .where((p) => p.categoryId == _selectedCategoryId)
-          .toList();
-    }
-
-    return result;
-  }
-
   Widget _buildProductList(AsyncValue<List<ProductModel>> productsAsync) {
     final listPadding = ResponsiveUtils.getResponsivePaddingCustom(
       context,
@@ -428,10 +440,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           _filterManager!.initialize(products);
         }
 
-        // Always use FilterManager if available (for sorting and filtering)
+        // FIX: Apply search query directly to products first, then use FilterManager for advanced filters
+        var searchFiltered = products;
+        if (_searchQuery.isNotEmpty) {
+          searchFiltered = products
+              .where(
+                (p) =>
+                    p.name.toLowerCase().contains(_searchQuery) ||
+                    (p.sku?.toLowerCase().contains(_searchQuery) ?? false) ||
+                    (p.category?.name.toLowerCase().contains(_searchQuery) ??
+                        false) ||
+                    (p.brand?.name.toLowerCase().contains(_searchQuery) ??
+                        false),
+              )
+              .toList();
+        }
+
+        // Then apply FilterManager filters (excluding search since we handle it above)
         final displayProducts = _filterManager != null
-            ? _filterManager!.filteredProducts
-            : _filterProducts(products);
+            ? _filterManager!.applyFiltersToProducts(
+                searchFiltered,
+                excludeSearch: true,
+              )
+            : searchFiltered;
 
         if (displayProducts.isEmpty) {
           return Center(
@@ -439,7 +470,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  _filterManager?.hasActiveFilters == true
+                  _searchQuery.isNotEmpty ||
+                          _filterManager?.hasActiveFilters == true
                       ? Icons.search_off
                       : Icons.inventory_2_outlined,
                   size: ResponsiveUtils.getResponsiveIconSize(context) * 3,
@@ -454,15 +486,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ),
                 ),
                 Text(
-                  _filterManager?.hasActiveFilters == true
-                      ? 'Tidak ada produk yang sesuai filter'
+                  _searchQuery.isNotEmpty ||
+                          _filterManager?.hasActiveFilters == true
+                      ? 'Tidak ada produk yang sesuai'
                       : 'Tidak ada produk',
                   style: TextStyle(
                     color: AppColors.textGray,
                     fontSize: emptyStateFontSize,
                   ),
                 ),
-                if (_filterManager?.hasActiveFilters == true) ...[
+                if (_searchQuery.isNotEmpty ||
+                    _filterManager?.hasActiveFilters == true) ...[
                   SizedBox(
                     height: ResponsiveUtils.getResponsiveSpacing(
                       context,
@@ -472,7 +506,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     ),
                   ),
                   Text(
-                    'Coba ubah filter atau kata kunci pencarian',
+                    _searchQuery.isNotEmpty
+                        ? 'Coba kata kunci lain atau hapus filter'
+                        : 'Coba ubah filter atau kata kunci pencarian',
                     style: TextStyle(
                       color: AppColors.textLight,
                       fontSize: emptyStateFontSize * 0.9,

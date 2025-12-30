@@ -25,6 +25,7 @@ class ExpenseIncomeComparisonChart extends StatelessWidget {
     ].reduce((a, b) => a > b ? a : b);
 
     return Container(
+      width: double.infinity,
       padding: ResponsiveUtils.getResponsivePadding(context),
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -35,6 +36,7 @@ class ExpenseIncomeComparisonChart extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Header
           Text(
@@ -69,38 +71,32 @@ class ExpenseIncomeComparisonChart extends StatelessWidget {
           _buildSimpleBarChart(context, maxValue),
           SizedBox(height: AppSpacing.lg),
 
-          // Summary Cards
-          Row(
+          // Summary Cards - Now in vertical stack
+          Column(
             children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  context,
-                  'Pendapatan',
-                  totalIncome,
-                  AppColors.success,
-                ),
+              _buildSummaryCard(
+                context,
+                'Pendapatan',
+                totalIncome,
+                AppColors.success,
               ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _buildSummaryCard(
-                  context,
-                  'Pengeluaran',
-                  totalExpense,
-                  AppColors.error,
-                ),
+              SizedBox(height: AppSpacing.md),
+              _buildSummaryCard(
+                context,
+                'Pengeluaran',
+                totalExpense,
+                AppColors.error,
               ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _buildSummaryCard(
-                  context,
-                  'Profit',
-                  profit,
-                  profit >= 0 ? AppColors.primary : AppColors.error,
-                ),
+              SizedBox(height: AppSpacing.md),
+              _buildSummaryCard(
+                context,
+                'Profit',
+                profit,
+                profit >= 0 ? AppColors.primary : AppColors.error,
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.lg),
 
           // Advanced Metrics & Trends
           _buildAdvancedMetrics(context, profit),
@@ -227,51 +223,88 @@ class ExpenseIncomeComparisonChart extends StatelessWidget {
     Color color,
   ) {
     return Container(
+      width: double.infinity,
       padding: ResponsiveUtils.getResponsivePaddingCustom(
         context,
-        phoneValue: AppSpacing.md,
-        tabletValue: AppSpacing.lg,
-        desktopValue: 16,
+        phoneValue: 16,
+        tabletValue: 18,
+        desktopValue: 20,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(
-          ResponsiveUtils.getResponsiveBorderRadius(context),
+          ResponsiveUtils.getResponsiveBorderRadius(context) * 1.2,
         ),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: ResponsiveUtils.getResponsiveFontSize(
-                context,
-                phoneSize: 12,
-                tabletSize: 13,
-                desktopSize: 14,
-              ),
-              color: AppColors.textGray,
-            ),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          SizedBox(height: AppSpacing.xs),
-          Text(
-            'Rp ${_formatNumber(amount)}',
-            style: TextStyle(
-              fontSize: ResponsiveUtils.getResponsiveFontSize(
-                context,
-                phoneSize: 14,
-                tabletSize: 16,
-                desktopSize: 18,
-              ),
-              fontWeight: FontWeight.w600,
-              color: color,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(_getIconForLabel(label), color: color, size: 24),
+          ),
+          SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 14,
+                      tabletSize: 15,
+                      desktopSize: 16,
+                    ),
+                    color: AppColors.textGray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Rp ${_formatNumber(amount)}',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 18,
+                      tabletSize: 20,
+                      desktopSize: 22,
+                    ),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  IconData _getIconForLabel(String label) {
+    switch (label) {
+      case 'Pendapatan':
+        return Icons.trending_up;
+      case 'Pengeluaran':
+        return Icons.trending_down;
+      case 'Profit':
+        return Icons.account_balance_wallet;
+      default:
+        return Icons.monetization_on;
+    }
   }
 
   Widget _buildAdvancedMetrics(BuildContext context, int profit) {
@@ -287,53 +320,39 @@ class ExpenseIncomeComparisonChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Metrics Grid
-        Row(
+        // Metrics Grid - Changed to vertical stack
+        Column(
           children: [
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                'Expense Ratio',
-                '${expenseRatio.toStringAsFixed(1)}%',
-                _getExpenseRatioColor(expenseRatio),
-                Icons.pie_chart,
-              ),
+            _buildMetricCard(
+              context,
+              'Expense Ratio',
+              '${expenseRatio.toStringAsFixed(1)}%',
+              _getExpenseRatioColor(expenseRatio),
+              Icons.pie_chart,
             ),
-            SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                'Profit Margin',
-                '${profitMargin.toStringAsFixed(1)}%',
-                _getProfitMarginColor(profitMargin),
-                Icons.trending_up,
-              ),
+            SizedBox(height: AppSpacing.md),
+            _buildMetricCard(
+              context,
+              'Profit Margin',
+              '${profitMargin.toStringAsFixed(1)}%',
+              _getProfitMarginColor(profitMargin),
+              Icons.trending_up,
             ),
-          ],
-        ),
-        SizedBox(height: AppSpacing.md),
-
-        // ROI & Efficiency
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                'ROI',
-                '${roi.toStringAsFixed(1)}%',
-                _getROIColor(roi),
-                Icons.trending_up,
-              ),
+            SizedBox(height: AppSpacing.md),
+            _buildMetricCard(
+              context,
+              'ROI',
+              '${roi.toStringAsFixed(1)}%',
+              _getROIColor(roi),
+              Icons.trending_up,
             ),
-            SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                'Efficiency',
-                '${efficiency.toStringAsFixed(1)}%',
-                _getEfficiencyColor(efficiency),
-                Icons.speed,
-              ),
+            SizedBox(height: AppSpacing.md),
+            _buildMetricCard(
+              context,
+              'Efficiency',
+              '${efficiency.toStringAsFixed(1)}%',
+              _getEfficiencyColor(efficiency),
+              Icons.speed,
             ),
           ],
         ),
@@ -349,54 +368,70 @@ class ExpenseIncomeComparisonChart extends StatelessWidget {
     IconData icon,
   ) {
     return Container(
+      width: double.infinity,
       padding: ResponsiveUtils.getResponsivePaddingCustom(
         context,
-        phoneValue: AppSpacing.md,
-        tabletValue: AppSpacing.lg,
-        desktopValue: 16,
+        phoneValue: 16,
+        tabletValue: 18,
+        desktopValue: 20,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(
-          ResponsiveUtils.getResponsiveBorderRadius(context),
+          ResponsiveUtils.getResponsiveBorderRadius(context) * 1.2,
         ),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
+          Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   label,
                   style: TextStyle(
                     fontSize: ResponsiveUtils.getResponsiveFontSize(
                       context,
-                      phoneSize: 11,
-                      tabletSize: 12,
-                      desktopSize: 13,
+                      phoneSize: 13,
+                      tabletSize: 14,
+                      desktopSize: 15,
                     ),
                     color: AppColors.textGray,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: ResponsiveUtils.getResponsiveFontSize(
-                context,
-                phoneSize: 16,
-                tabletSize: 18,
-                desktopSize: 20,
-              ),
-              fontWeight: FontWeight.bold,
-              color: color,
+                SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 16,
+                      tabletSize: 18,
+                      desktopSize: 20,
+                    ),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

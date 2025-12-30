@@ -516,7 +516,10 @@ final dashboardStreamProvider =
 
         yield DashboardState(
           todayOmset: dashboardData.totalOmset,
-          todayHpp: 0, // Not available from stream
+          todayHpp:
+              dashboardData.totalOmset -
+              dashboardData.totalProfit -
+              dashboardData.totalExpenses, // FIX: Calculate HPP
           todayExpenses: dashboardData.totalExpenses,
           todayProfit: dashboardData.totalProfit,
           todayTransactionCount: dashboardData.totalTransactions,

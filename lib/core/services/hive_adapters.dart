@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:posfelix/core/utils/logger.dart';
+import 'package:posfelix/domain/repositories/dashboard_repository.dart';
 
 part 'hive_adapters.g.dart';
 
@@ -30,6 +31,19 @@ Future<void> registerHiveAdapters() async {
     // Register QueuedTransaction adapter
     if (!Hive.isAdapterRegistered(HiveTypeIds.queuedTransaction)) {
       Hive.registerAdapter(QueuedTransactionAdapter());
+    }
+
+    // Register Dashboard adapters
+    if (!Hive.isAdapterRegistered(20)) {
+      Hive.registerAdapter(DashboardDataAdapter());
+    }
+
+    if (!Hive.isAdapterRegistered(21)) {
+      Hive.registerAdapter(ProfitIndicatorAdapter());
+    }
+
+    if (!Hive.isAdapterRegistered(22)) {
+      Hive.registerAdapter(TaxIndicatorAdapter());
     }
 
     AppLogger.info('Hive adapters registered successfully');

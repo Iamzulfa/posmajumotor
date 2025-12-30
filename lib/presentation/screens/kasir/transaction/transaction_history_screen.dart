@@ -235,14 +235,14 @@ class _TransactionHistoryScreenState
     BuildContext context,
     TransactionModel transaction,
   ) {
-    String _formatCurrency(int amount) {
+    String formatCurrency(int amount) {
       return amount.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (Match m) => '${m[1]}.',
       );
     }
 
-    String _getTierLabel(String tier) {
+    String getTierLabel(String tier) {
       switch (tier.toUpperCase()) {
         case 'UMUM':
           return 'Orang Umum';
@@ -338,7 +338,7 @@ class _TransactionHistoryScreenState
                         ),
                       ),
                       child: Text(
-                        _getTierLabel(transaction.tier),
+                        getTierLabel(transaction.tier),
                         style: TextStyle(
                           fontSize: ResponsiveUtils.getResponsiveFontSize(
                             context,
@@ -370,7 +370,7 @@ class _TransactionHistoryScreenState
                       ),
                     ),
                     Text(
-                      'Rp ${_formatCurrency(transaction.total)}',
+                      'Rp ${formatCurrency(transaction.total)}',
                       style: TextStyle(
                         fontSize: ResponsiveUtils.getResponsiveFontSize(
                           context,
@@ -401,7 +401,7 @@ class _TransactionHistoryScreenState
                       ),
                     ),
                     Text(
-                      'Rp ${_formatCurrency(transaction.profit)}',
+                      'Rp ${formatCurrency(transaction.profit)}',
                       style: TextStyle(
                         fontSize: ResponsiveUtils.getResponsiveFontSize(
                           context,

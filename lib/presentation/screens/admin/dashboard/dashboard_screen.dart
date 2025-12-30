@@ -211,6 +211,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final hpp = state.todayHpp;
     final expenses = state.todayExpenses;
 
+    // FIX: Calculate HPP from omset and profit if not available
+    final calculatedHpp = hpp > 0 ? hpp : (omset - profit - expenses);
+
     final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
       phoneSize: 13,
@@ -281,7 +284,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: _buildProfitDetail('Penjualan', _formatCompact(omset)),
                 ),
                 Container(width: 1, height: 30, color: Colors.white24),
-                Expanded(child: _buildProfitDetail('HPP', _formatCompact(hpp))),
+                Expanded(
+                  child: _buildProfitDetail(
+                    'HPP',
+                    _formatCompact(calculatedHpp),
+                  ),
+                ),
                 Container(width: 1, height: 30, color: Colors.white24),
                 Expanded(
                   child: _buildProfitDetail(
@@ -591,22 +599,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 15,
-      tabletSize: 17,
-      desktopSize: 19,
+      phoneSize: 16,
+      tabletSize: 18,
+      desktopSize: 20,
     );
     final chartHeight = ResponsiveUtils.getResponsiveHeight(
       context,
-      phoneHeight: 150,
-      tabletHeight: 180,
-      desktopHeight: 220,
+      phoneHeight: 180,
+      tabletHeight: 220,
+      desktopHeight: 260,
     );
-    final containerPadding = ResponsiveUtils.getResponsivePadding(context);
+    final containerPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 16,
+      tabletValue: 20,
+      desktopValue: 24,
+    );
     final legendSpacing = ResponsiveUtils.getResponsiveSpacing(
       context,
-      phoneSpacing: 12,
-      tabletSpacing: 16,
-      desktopSpacing: 20,
+      phoneSpacing: 16,
+      tabletSpacing: 20,
+      desktopSpacing: 24,
     );
 
     return Column(
@@ -626,9 +639,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.circular(
-              ResponsiveUtils.getResponsiveBorderRadius(context),
+              ResponsiveUtils.getResponsiveBorderRadius(context) * 1.2,
             ),
             border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.textGray.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: last7DaysAsync.when(
             data: (dailySummaries) {
@@ -655,7 +675,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ],
                   ),
                   SizedBox(
-                    height: ResponsiveUtils.getPercentageHeight(context, 2),
+                    height: ResponsiveUtils.getPercentageHeight(context, 3),
                   ),
                   SizedBox(
                     height: chartHeight,
@@ -669,26 +689,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                   SizedBox(
-                    height: ResponsiveUtils.getPercentageHeight(context, 1),
+                    height: ResponsiveUtils.getPercentageHeight(context, 2),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: dailySummaries
-                        .map(
-                          (summary) => Text(
-                            _formatDateLabel(summary.date),
-                            style: TextStyle(
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                context,
-                                phoneSize: 9,
-                                tabletSize: 10,
-                                desktopSize: 11,
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.getPercentageWidth(
+                        context,
+                        2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: dailySummaries
+                          .map(
+                            (summary) => Text(
+                              _formatDateLabel(summary.date),
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  phoneSize: 11,
+                                  tabletSize: 12,
+                                  desktopSize: 13,
+                                ),
+                                color: AppColors.textGray,
+                                fontWeight: FontWeight.w500,
                               ),
-                              color: AppColors.textGray,
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        )
-                        .toList(),
+                          )
+                          .toList(),
+                    ),
                   ),
                 ],
               );
@@ -700,9 +730,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             error: (error, _) => SizedBox(
               height: chartHeight,
               child: Center(
-                child: Text(
-                  'Error loading chart',
-                  style: TextStyle(color: AppColors.error),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Error loading chart',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -715,33 +752,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildLegendItem(String label, Color color) {
     final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 11,
-      tabletSize: 12,
-      desktopSize: 13,
+      phoneSize: 13,
+      tabletSize: 14,
+      desktopSize: 15,
     );
     final indicatorSize = ResponsiveUtils.getResponsiveHeight(
       context,
-      phoneHeight: 10,
-      tabletHeight: 12,
-      desktopHeight: 14,
+      phoneHeight: 12,
+      tabletHeight: 14,
+      desktopHeight: 16,
     );
 
-    return Row(
-      children: [
-        Container(
-          width: indicatorSize,
-          height: indicatorSize,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveUtils.getPercentageWidth(context, 3),
+        vertical: ResponsiveUtils.getPercentageHeight(context, 1),
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getResponsiveBorderRadius(context),
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: indicatorSize,
+            height: indicatorSize,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
           ),
-        ),
-        SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 1.5)),
-        Text(
-          label,
-          style: TextStyle(fontSize: labelFontSize, color: AppColors.textGray),
-        ),
-      ],
+          SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 2)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: labelFontSize,
+              color: AppColors.textDark,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -963,34 +1018,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final tierNameFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 13,
-      tabletSize: 14,
-      desktopSize: 15,
+      phoneSize: 15,
+      tabletSize: 16,
+      desktopSize: 17,
     );
     final tierCountFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 11,
-      tabletSize: 12,
-      desktopSize: 12,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
     );
     final tierAmountFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 13,
-      tabletSize: 14,
-      desktopSize: 15,
+      phoneSize: 15,
+      tabletSize: 16,
+      desktopSize: 17,
     );
     final tierPercentFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 11,
-      tabletSize: 12,
-      desktopSize: 12,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
     );
-    final containerPadding = ResponsiveUtils.getResponsivePadding(context);
+    final containerPadding = ResponsiveUtils.getResponsivePaddingCustom(
+      context,
+      phoneValue: 16,
+      tabletValue: 20,
+      desktopValue: 24,
+    );
     final indicatorSize = ResponsiveUtils.getResponsiveHeight(
       context,
-      phoneHeight: 7,
-      tabletHeight: 8,
-      desktopHeight: 10,
+      phoneHeight: 10,
+      tabletHeight: 12,
+      desktopHeight: 14,
     );
 
     return Container(
@@ -998,9 +1058,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(
-          ResponsiveUtils.getResponsiveBorderRadius(context),
+          ResponsiveUtils.getResponsiveBorderRadius(context) * 1.2,
         ),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textGray.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1013,7 +1080,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 height: indicatorSize,
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
-              SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 2)),
+              SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 3)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1022,7 +1089,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       tier,
                       style: TextStyle(
                         fontSize: tierNameFontSize,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textDark,
                       ),
                     ),
@@ -1053,28 +1120,52 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   SizedBox(
                     height: ResponsiveUtils.getPercentageHeight(context, 0.5),
                   ),
-                  Text(
-                    '${percentage.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: tierPercentFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: color,
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.getPercentageWidth(
+                        context,
+                        2,
+                      ),
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${percentage.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: tierPercentFontSize,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 2)),
-          // Detail breakdown
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildTierDetail('Omset', omset),
-              _buildTierDetail('HPP', hpp),
-              _buildTierDetail('Profit', profit),
-              _buildTierDetail('Margin', marginPercent, isPercent: true),
-            ],
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 3)),
+          // Detail breakdown with better spacing
+          Container(
+            padding: EdgeInsets.all(
+              ResponsiveUtils.getPercentageWidth(context, 3),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundLight,
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getResponsiveBorderRadius(context),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildTierDetail('Omset', omset),
+                _buildTierDetail('HPP', hpp),
+                _buildTierDetail('Profit', profit),
+                _buildTierDetail('Margin', marginPercent, isPercent: true),
+              ],
+            ),
           ),
         ],
       ),
@@ -1092,33 +1183,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
       context,
-      phoneSize: 10,
-      tabletSize: 11,
-      desktopSize: 12,
-    );
-    final valueFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
       phoneSize: 11,
       tabletSize: 12,
       desktopSize: 13,
     );
+    final valueFontSize = ResponsiveUtils.getResponsiveFontSize(
+      context,
+      phoneSize: 12,
+      tabletSize: 13,
+      desktopSize: 14,
+    );
 
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: labelFontSize, color: AppColors.textGray),
-        ),
-        SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 0.5)),
-        Text(
-          displayValue,
-          style: TextStyle(
-            fontSize: valueFontSize,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: labelFontSize,
+              color: AppColors.textGray,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      ],
+          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 1)),
+          Text(
+            displayValue,
+            style: TextStyle(
+              fontSize: valueFontSize,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 

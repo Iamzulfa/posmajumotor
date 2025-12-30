@@ -80,7 +80,7 @@ class _CategoryBrandManagementScreenState
                 ),
                 border: Border.all(color: AppColors.border, width: 1),
               ),
-              child: Container(
+              child: SizedBox(
                 height: ResponsiveUtils.getResponsiveHeight(
                   context,
                   phoneHeight: 48,

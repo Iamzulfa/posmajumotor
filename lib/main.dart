@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,6 +13,8 @@ import 'core/services/hive_adapters.dart';
 import 'core/utils/auto_responsive.dart';
 import 'core/services/offline_service.dart';
 import 'core/services/cache_seeder.dart';
+import 'debug/simple_debug.dart';
+import 'debug/fixed_expense_debug.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +35,12 @@ void main() async {
     await CacheSeeder.seedInitialCache();
 
     await setupServiceLocator();
+
+    // Debug database (only in debug mode)
+    if (kDebugMode) {
+      await SimpleDebug.checkDatabase();
+      await FixedExpenseDebug.checkFixedExpenses();
+    }
 
     // Replace splash with main app
     runApp(const ProviderScope(child: MyApp()));

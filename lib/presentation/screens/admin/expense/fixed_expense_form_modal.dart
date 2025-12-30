@@ -2,34 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_spacing.dart';
-import '../../../../data/models/models.dart';
+import '../../../../data/models/fixed_expense_model.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../providers/expense_provider.dart';
+import '../../../providers/fixed_expense_provider.dart';
 
-void showExpenseFormModal(BuildContext context, {ExpenseModel? expense}) {
+void showFixedExpenseFormModal(
+  BuildContext context, {
+  FixedExpenseModel? expense,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) => ExpenseFormModal(expense: expense),
+    builder: (context) => FixedExpenseFormModal(expense: expense),
   );
 }
 
-class ExpenseFormModal extends ConsumerStatefulWidget {
-  final ExpenseModel? expense;
+class FixedExpenseFormModal extends ConsumerStatefulWidget {
+  final FixedExpenseModel? expense;
 
-  const ExpenseFormModal({super.key, this.expense});
+  const FixedExpenseFormModal({super.key, this.expense});
 
   @override
-  ConsumerState<ExpenseFormModal> createState() => _ExpenseFormModalState();
+  ConsumerState<FixedExpenseFormModal> createState() =>
+      _FixedExpenseFormModalState();
 }
 
-class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
+class _FixedExpenseFormModalState extends ConsumerState<FixedExpenseFormModal> {
+  late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _amountController;
-  late TextEditingController _categoryController;
   String? _selectedCategory;
   bool _isLoading = false;
 
@@ -39,35 +43,35 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
   void initState() {
     super.initState();
 
-    // FIX: Initialize categories list excluding fixed expense categories
-    // Fixed expenses (Gaji Karyawan, Listrik & Air) should not be available for daily expenses
+    // Initialize categories list for fixed expenses
     _categories = [
+      'Gaji Karyawan',
       'Sewa Tempat',
-      'Transportasi',
-      'Perawatan Kendaraan',
-      'Supplies',
-      'Marketing',
+      'Listrik & Air',
+      'Internet & Telepon',
+      'Asuransi',
+      'Pajak',
+      'Perawatan & Maintenance',
       'Lainnya',
     ];
 
+    _nameController = TextEditingController(text: widget.expense?.name ?? '');
     _descriptionController = TextEditingController(
       text: widget.expense?.description ?? '',
     );
     _amountController = TextEditingController(
       text: widget.expense?.amount.toString() ?? '',
     );
-    _categoryController = TextEditingController(
-      text: widget.expense?.category ?? '',
-    );
 
-    // Set selected category, ensure it's in the list
-    final expenseCategory = widget.expense?.category;
-    if (expenseCategory != null && _categories.contains(expenseCategory)) {
-      _selectedCategory = expenseCategory;
-    } else if (expenseCategory != null) {
-      // If category not in list, add it (for backward compatibility)
-      _categories.add(expenseCategory);
-      _selectedCategory = expenseCategory;
+    // Set selected category
+    if (widget.expense != null) {
+      final expenseCategory = _mapCategoryFromDb(widget.expense!.category);
+      if (_categories.contains(expenseCategory)) {
+        _selectedCategory = expenseCategory;
+      } else {
+        _categories.add(expenseCategory);
+        _selectedCategory = expenseCategory;
+      }
     } else {
       _selectedCategory = _categories.first;
     }
@@ -75,38 +79,57 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
-    _categoryController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveExpense() async {
+  String _mapCategoryFromDb(String dbCategory) {
+    final categoryMapping = {
+      'GAJI': 'Gaji Karyawan',
+      'SEWA': 'Sewa Tempat',
+      'LISTRIK': 'Listrik & Air',
+      'INTERNET': 'Internet & Telepon',
+      'ASURANSI': 'Asuransi',
+      'PAJAK': 'Pajak',
+      'MAINTENANCE': 'Perawatan & Maintenance',
+      'LAINNYA': 'Lainnya',
+    };
+    return categoryMapping[dbCategory.toUpperCase()] ?? dbCategory;
+  }
+
+  String _mapCategoryToDb(String displayCategory) {
+    final categoryMapping = {
+      'Gaji Karyawan': 'GAJI',
+      'Sewa Tempat': 'SEWA',
+      'Listrik & Air': 'LISTRIK',
+      'Internet & Telepon': 'INTERNET',
+      'Asuransi': 'ASURANSI',
+      'Pajak': 'PAJAK',
+      'Perawatan & Maintenance': 'MAINTENANCE',
+      'Lainnya': 'LAINNYA',
+    };
+    return categoryMapping[displayCategory] ?? 'LAINNYA';
+  }
+
+  Future<void> _saveFixedExpense() async {
     if (!_validateForm()) return;
 
     setState(() => _isLoading = true);
 
     try {
       final amount = int.parse(_amountController.text);
+      final dbCategory = _mapCategoryToDb(_selectedCategory!);
 
-      // FIX: Map Indonesian category names to database categories (excluding fixed expenses)
-      final categoryMapping = {
-        'Sewa Tempat': 'SEWA',
-        'Transportasi': 'TRANSPORTASI',
-        'Perawatan Kendaraan': 'PERAWATAN',
-        'Supplies': 'SUPPLIES',
-        'Marketing': 'MARKETING',
-        'Lainnya': 'LAINNYA',
-      };
-
-      final dbCategory =
-          categoryMapping[_selectedCategory] ?? _selectedCategory ?? 'LAINNYA';
-
-      AppLogger.info('💰 Saving expense: $_selectedCategory → $dbCategory');
+      AppLogger.info(
+        '💰 Saving fixed expense: $_selectedCategory → $dbCategory',
+      );
 
       if (widget.expense != null) {
-        // Edit existing expense
+        // Edit existing fixed expense
         final updatedExpense = widget.expense!.copyWith(
+          name: _nameController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
               ? null
               : _descriptionController.text.trim(),
@@ -115,30 +138,38 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
         );
 
         await ref
-            .read(expenseListProvider.notifier)
-            .updateExpense(updatedExpense);
+            .read(fixedExpenseListProvider.notifier)
+            .updateFixedExpense(updatedExpense);
 
-        AppLogger.info('Expense updated: ${updatedExpense.id}');
+        AppLogger.info('Fixed expense updated: ${updatedExpense.id}');
       } else {
-        // Create new expense
-        await ref
-            .read(expenseListProvider.notifier)
-            .createExpense(
-              category: dbCategory,
-              amount: amount,
-              description: _descriptionController.text.trim().isEmpty
-                  ? null
-                  : _descriptionController.text.trim(),
-            );
+        // Create new fixed expense - generate UUID on client side
+        final newExpense = FixedExpenseModel(
+          id: '', // Let database generate UUID
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          amount: amount,
+          category: dbCategory,
+          isActive: true,
+          recurrenceType: 'MONTHLY', // Default to monthly for fixed expenses
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
 
-        AppLogger.info('Expense creation requested');
+        await ref
+            .read(fixedExpenseListProvider.notifier)
+            .createFixedExpense(newExpense);
+
+        AppLogger.info('Fixed expense creation requested');
       }
 
       // Wait a moment for provider state to update
       await Future.delayed(const Duration(milliseconds: 100));
 
       // Check if there was an error in the provider
-      final providerState = ref.read(expenseListProvider);
+      final providerState = ref.read(fixedExpenseListProvider);
       if (providerState.error != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -149,17 +180,20 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
           );
         }
         // Clear the error after showing it
-        ref.read(expenseListProvider.notifier).clearError();
+        ref.read(fixedExpenseListProvider.notifier).clearError();
         return;
       }
+
+      // Force refresh the stream provider to ensure UI updates
+      ref.invalidate(fixedExpensesStreamProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               widget.expense != null
-                  ? 'Pengeluaran berhasil diperbarui'
-                  : 'Pengeluaran berhasil ditambahkan',
+                  ? 'Pengeluaran tetap berhasil diperbarui'
+                  : 'Pengeluaran tetap berhasil ditambahkan',
             ),
             backgroundColor: AppColors.success,
           ),
@@ -167,7 +201,7 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
         Navigator.pop(context);
       }
     } catch (e) {
-      AppLogger.error('Error saving expense', e);
+      AppLogger.error('Error saving fixed expense', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -184,10 +218,10 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
   }
 
   bool _validateForm() {
-    if (_descriptionController.text.trim().isEmpty) {
+    if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Deskripsi tidak boleh kosong'),
+          content: Text('Nama pengeluaran tidak boleh kosong'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -205,7 +239,16 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
     }
 
     try {
-      int.parse(_amountController.text);
+      final amount = int.parse(_amountController.text);
+      if (amount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Jumlah harus lebih dari 0'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return false;
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -253,8 +296,8 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
               children: [
                 Text(
                   widget.expense != null
-                      ? 'Edit Pengeluaran'
-                      : 'Tambah Pengeluaran',
+                      ? 'Edit Pengeluaran Tetap'
+                      : 'Tambah Pengeluaran Tetap',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -266,6 +309,34 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Name
+            Text(
+              'Nama Pengeluaran',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textDark,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                hintText: 'Contoh: Gaji Karyawan, Sewa Kantor',
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderSide: BorderSide.none,
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -302,38 +373,9 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Description
-            Text(
-              'Deskripsi',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textDark,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                hintText: 'Masukkan deskripsi pengeluaran',
-                filled: true,
-                fillColor: AppColors.background,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.md,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: AppSpacing.md),
-
             // Amount
             Text(
-              'Jumlah (Rp)',
+              'Jumlah per Bulan (Rp)',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -344,7 +386,7 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
             TextField(
               controller: _amountController,
               decoration: InputDecoration(
-                hintText: 'Masukkan jumlah pengeluaran',
+                hintText: 'Masukkan jumlah pengeluaran bulanan',
                 filled: true,
                 fillColor: AppColors.background,
                 contentPadding: const EdgeInsets.symmetric(
@@ -357,6 +399,35 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
                 ),
               ),
               keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Description
+            Text(
+              'Deskripsi (Opsional)',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textDark,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                hintText: 'Tambahkan deskripsi atau catatan',
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              maxLines: 3,
             ),
             const SizedBox(height: AppSpacing.lg),
 
@@ -387,7 +458,7 @@ class _ExpenseFormModalState extends ConsumerState<ExpenseFormModal> {
                         vertical: AppSpacing.md,
                       ),
                     ),
-                    onPressed: _isLoading ? null : _saveExpense,
+                    onPressed: _isLoading ? null : _saveFixedExpense,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,

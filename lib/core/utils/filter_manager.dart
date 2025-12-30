@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/models.dart';
 
@@ -273,7 +272,14 @@ class FilterManager extends ChangeNotifier {
 
       case FilterType.custom:
         // Handle custom filters based on value type
-        return products;
+        final customValue = filter.value as String;
+        switch (customValue) {
+          case 'high_stock':
+            // Filter products with stock >= 2x minimum stock (indicating high stock)
+            return products.where((p) => p.stock >= (p.minStock * 2)).toList();
+          default:
+            return products;
+        }
     }
   }
 
@@ -461,6 +467,35 @@ class FilterManager extends ChangeNotifier {
         ],
       ),
     ];
+  }
+
+  /// Apply filters to specific products (used for external filtering)
+  List<ProductModel> applyFiltersToProducts(
+    List<ProductModel> products, {
+    bool excludeSearch = false,
+  }) {
+    var filteredProducts = List<ProductModel>.from(products);
+
+    // Apply search query if not excluded
+    if (!excludeSearch && _searchQuery.isNotEmpty) {
+      filteredProducts = filteredProducts.where((product) {
+        return product.name.toLowerCase().contains(_searchQuery) ||
+            (product.sku?.toLowerCase().contains(_searchQuery) ?? false) ||
+            (product.category?.name.toLowerCase().contains(_searchQuery) ??
+                false) ||
+            (product.brand?.name.toLowerCase().contains(_searchQuery) ?? false);
+      }).toList();
+    }
+
+    // Apply each active filter
+    for (final filter in _activeFilters) {
+      filteredProducts = _applyIndividualFilter(filteredProducts, filter);
+    }
+
+    // Apply sorting
+    filteredProducts = _applySorting(filteredProducts);
+
+    return filteredProducts;
   }
 
   /// Get filter summary text

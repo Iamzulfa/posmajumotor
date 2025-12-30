@@ -1,3 +1,4 @@
+import 'dart:async'; // FIX: Add Timer import
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
@@ -22,10 +23,11 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
   late FilterManager _filterManager;
   late TabController _tabController;
   final _searchController = TextEditingController();
+  Timer? _debounceTimer; // FIX: Add debounce timer
 
   // Filter state
-  List<String> _selectedBrands = [];
-  List<String> _selectedCategories = [];
+  final List<String> _selectedBrands = [];
+  final List<String> _selectedCategories = [];
   String _selectedPriceRange = '';
   String _selectedStockLevel = '';
   String _sortOption = 'name_asc';
@@ -94,6 +96,7 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _debounceTimer?.cancel(); // FIX: Cancel timer on dispose
     super.dispose();
   }
 
@@ -183,7 +186,7 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
         ),
         border: Border.all(color: AppColors.border, width: 1),
       ),
-      child: Container(
+      child: SizedBox(
         height: ResponsiveUtils.getResponsiveHeight(
           context,
           phoneHeight: 48,
@@ -298,6 +301,16 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
           contentPadding: ResponsiveUtils.getResponsivePadding(context),
         ),
         onChanged: (value) {
+          // FIX: Implement debouncing - wait 500ms after user stops typing
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+            _filterManager.setSearchQuery(value);
+            setState(() {});
+          });
+        },
+        onSubmitted: (value) {
+          // FIX: Immediate search when user presses Enter
+          _debounceTimer?.cancel();
           _filterManager.setSearchQuery(value);
           setState(() {});
         },
@@ -330,17 +343,17 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
             desktopSpacing: 12,
           ),
         ),
+        // FIX: Hybrid approach - Keep original Harga/Stok + Add new Penjualan Cepat/Stok Kritis
         _buildFilterChipRow([
-          _buildFilterChip('Brand', Icons.business, _selectedBrands.isNotEmpty),
-          _buildFilterChip(
-            'Kategori',
-            Icons.category,
-            _selectedCategories.isNotEmpty,
-          ),
           _buildFilterChip(
             'Harga',
             Icons.attach_money,
             _selectedPriceRange.isNotEmpty,
+          ),
+          _buildFilterChip(
+            'Stok',
+            Icons.inventory,
+            _selectedStockLevel.isNotEmpty,
           ),
         ]),
         SizedBox(
@@ -352,10 +365,17 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
           ),
         ),
         _buildFilterChipRow([
-          _buildFilterChip(
-            'Stok',
-            Icons.inventory,
-            _selectedStockLevel.isNotEmpty,
+          _buildQuickFilterChip(
+            'Penjualan Cepat',
+            Icons.speed,
+            _hasFastMovingFilter(),
+            () => _toggleFastMovingFilter(),
+          ),
+          _buildQuickFilterChip(
+            'Stok Kritis',
+            Icons.warning,
+            _hasLowStockFilter(),
+            () => _toggleLowStockFilter(),
           ),
         ]),
       ],
@@ -366,6 +386,85 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
     return Row(children: chips.map((chip) => Expanded(child: chip)).toList());
   }
 
+  // FIX: New quick filter chip widget with action callback
+  Widget _buildQuickFilterChip(
+    String label,
+    IconData icon,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          phoneSpacing: 4,
+          tabletSpacing: 6,
+          desktopSpacing: 8,
+        ),
+      ),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: ResponsiveUtils.getResponsivePaddingCustom(
+            context,
+            phoneValue: 12,
+            tabletValue: 14,
+            desktopValue: 16,
+          ),
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppColors.primary.withValues(alpha: 0.1)
+                : AppColors.background,
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getResponsiveBorderRadius(context),
+            ),
+            border: Border.all(
+              color: isActive ? AppColors.primary : AppColors.border,
+              width: isActive ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isActive ? AppColors.primary : AppColors.textGray,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+              ),
+              SizedBox(
+                width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  phoneSpacing: 4,
+                  tabletSpacing: 6,
+                  desktopSpacing: 8,
+                ),
+              ),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: isActive ? AppColors.primary : AppColors.textGray,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      phoneSize: 11,
+                      tabletSize: 13,
+                      desktopSize: 15,
+                    ),
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Original filter chip for Harga and Stok (with dialog options)
   Widget _buildFilterChip(String label, IconData icon, bool isActive) {
     return Container(
       margin: EdgeInsets.symmetric(
@@ -1124,6 +1223,7 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
     );
   }
 
+  // Original filter options method for Harga and Stok
   void _showFilterOptions(String filterType) {
     switch (filterType.toLowerCase()) {
       case 'harga':
@@ -1144,6 +1244,7 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
 
   void _showPriceRangeDialog() {
     final priceRanges = [
+      {'id': '', 'label': 'Semua Harga (Hapus Filter)', 'range': null},
       {
         'id': 'price_0_50k',
         'label': 'Di bawah 50rb',
@@ -1180,7 +1281,17 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
               mainAxisSize: MainAxisSize.min,
               children: priceRanges.map((priceRange) {
                 return RadioListTile<String>(
-                  title: Text(priceRange['label'] as String),
+                  title: Text(
+                    priceRange['label'] as String,
+                    style: TextStyle(
+                      fontWeight: priceRange['id'] == ''
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: priceRange['id'] == ''
+                          ? AppColors.error
+                          : AppColors.textDark,
+                    ),
+                  ),
                   value: priceRange['id'] as String,
                   groupValue: tempSelectedPriceRange,
                   onChanged: (String? value) {
@@ -1207,18 +1318,23 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
 
                   _selectedPriceRange = tempSelectedPriceRange;
 
+                  // FIX: Only add filter if not empty (not "Semua Harga")
                   if (_selectedPriceRange.isNotEmpty) {
                     final selectedRange = priceRanges.firstWhere(
                       (r) => r['id'] == _selectedPriceRange,
                     );
-                    _filterManager.addFilter(
-                      FilterItem(
-                        id: _selectedPriceRange,
-                        type: FilterType.priceRange,
-                        label: selectedRange['label'] as String,
-                        value: selectedRange['range'] as PriceRange,
-                      ),
-                    );
+
+                    // Only add if range is not null
+                    if (selectedRange['range'] != null) {
+                      _filterManager.addFilter(
+                        FilterItem(
+                          id: _selectedPriceRange,
+                          type: FilterType.priceRange,
+                          label: selectedRange['label'] as String,
+                          value: selectedRange['range'] as PriceRange,
+                        ),
+                      );
+                    }
                   }
                 });
                 Navigator.pop(context);
@@ -1233,7 +1349,7 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
 
   void _showStockLevelDialog() {
     final stockLevels = [
-      {'id': 'stock_all', 'label': 'Semua Stok', 'level': StockLevel.all},
+      {'id': '', 'label': 'Semua Stok (Hapus Filter)', 'level': null},
       {'id': 'stock_inStock', 'label': 'Tersedia', 'level': StockLevel.inStock},
       {
         'id': 'stock_lowStock',
@@ -1261,7 +1377,17 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
               mainAxisSize: MainAxisSize.min,
               children: stockLevels.map((stockLevel) {
                 return RadioListTile<String>(
-                  title: Text(stockLevel['label'] as String),
+                  title: Text(
+                    stockLevel['label'] as String,
+                    style: TextStyle(
+                      fontWeight: stockLevel['id'] == ''
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: stockLevel['id'] == ''
+                          ? AppColors.error
+                          : AppColors.textDark,
+                    ),
+                  ),
                   value: stockLevel['id'] as String,
                   groupValue: tempSelectedStockLevel,
                   onChanged: (String? value) {
@@ -1288,19 +1414,24 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
 
                   _selectedStockLevel = tempSelectedStockLevel;
 
+                  // FIX: Only add filter if not empty and not "Semua Stok"
                   if (_selectedStockLevel.isNotEmpty &&
                       _selectedStockLevel != 'stock_all') {
                     final selectedLevel = stockLevels.firstWhere(
                       (l) => l['id'] == _selectedStockLevel,
                     );
-                    _filterManager.addFilter(
-                      FilterItem(
-                        id: _selectedStockLevel,
-                        type: FilterType.stock,
-                        label: selectedLevel['label'] as String,
-                        value: selectedLevel['level'] as StockLevel,
-                      ),
-                    );
+
+                    // Only add if level is not null
+                    if (selectedLevel['level'] != null) {
+                      _filterManager.addFilter(
+                        FilterItem(
+                          id: _selectedStockLevel,
+                          type: FilterType.stock,
+                          label: selectedLevel['label'] as String,
+                          value: selectedLevel['level'] as StockLevel,
+                        ),
+                      );
+                    }
                   }
                 });
                 Navigator.pop(context);
@@ -1365,5 +1496,54 @@ class _AdvancedFilterScreenState extends ConsumerState<AdvancedFilterScreen>
 
   void _applyFilters() {
     Navigator.pop(context, _filterManager);
+  }
+
+  // FIX: Updated quick filter logic - Keep only 2 new smart filters
+
+  // 1. STOK KRITIS - Products with low stock (stock <= minStock)
+  bool _hasLowStockFilter() {
+    return _filterManager.activeFilters.any(
+      (f) => f.id == 'quick_stock_critical',
+    );
+  }
+
+  void _toggleLowStockFilter() {
+    const filterId = 'quick_stock_critical';
+    if (_hasLowStockFilter()) {
+      _filterManager.removeFilter(filterId);
+    } else {
+      _filterManager.addFilter(
+        FilterItem(
+          id: filterId,
+          type: FilterType.stock,
+          label: 'Stok Kritis',
+          value: StockLevel.lowStock,
+        ),
+      );
+    }
+    setState(() {});
+  }
+
+  // 2. PENJUALAN CEPAT - Products with good margin (≥20%) indicating they sell well
+  bool _hasFastMovingFilter() {
+    return _filterManager.activeFilters.any((f) => f.id == 'quick_fast_moving');
+  }
+
+  void _toggleFastMovingFilter() {
+    const filterId = 'quick_fast_moving';
+    if (_hasFastMovingFilter()) {
+      _filterManager.removeFilter(filterId);
+    } else {
+      // Use medium margin (≥20%) as proxy for fast-moving products
+      _filterManager.addFilter(
+        FilterItem(
+          id: filterId,
+          type: FilterType.margin,
+          label: 'Penjualan Cepat (≥20%)',
+          value: MarginLevel.medium,
+        ),
+      );
+    }
+    setState(() {});
   }
 }

@@ -275,7 +275,7 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
   @override
   Widget build(BuildContext context) {
     final selectedLabel = widget.selectedItem != null
-        ? widget.itemLabel(widget.selectedItem!)
+        ? widget.itemLabel(widget.selectedItem as T)
         : widget.hint;
 
     return GestureDetector(
