@@ -127,7 +127,7 @@ CREATE TABLE public.transaction_items (
 -- ============================================
 CREATE TABLE public.expenses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    category TEXT NOT NULL CHECK (category IN ('GAJI', 'SEWA', 'LISTRIK', 'TRANSPORTASI', 'PERAWATAN', 'SUPPLIES', 'LAINNYA')),
+    category TEXT NOT NULL CHECK (category IN ('GAJI', 'SEWA', 'LISTRIK', 'TRANSPORTASI', 'PERAWATAN', 'SUPPLIES', 'MARKETING', 'LAINNYA')),
     amount BIGINT NOT NULL CHECK (amount > 0),
     description TEXT,
     expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -146,7 +146,7 @@ CREATE TABLE public.fixed_expenses (
     name TEXT NOT NULL,
     description TEXT,
     amount BIGINT NOT NULL CHECK (amount > 0),
-    category TEXT NOT NULL CHECK (category IN ('GAJI', 'SEWA', 'LISTRIK', 'TRANSPORTASI', 'PERAWATAN', 'SUPPLIES', 'LAINNYA')),
+    category TEXT NOT NULL CHECK (category IN ('GAJI', 'SEWA', 'LISTRIK', 'TRANSPORTASI', 'PERAWATAN', 'SUPPLIES', 'MARKETING', 'LAINNYA')),
     
     -- Recurrence
     is_active BOOLEAN DEFAULT true,

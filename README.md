@@ -461,8 +461,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For support, questions, or feature requests:
 - Create an issue on GitHub
-- Check the development guides in `documents/guides/`
-- Review the daily development reports in `DAILY_DEVELOPMENT_REPORT.md`
+- Check the development guides in `docs/guides/`
+- Review the daily development reports in `docs/development/DAILY_DEVELOPMENT_REPORT.md`
+- Browse organized documentation in `docs/` directory
 
 ---
 
@@ -482,3 +483,164 @@ For support, questions, or feature requests:
 Built with ❤️ using Flutter and Supabase.
 
 **Status**: ✅ **ADVANCED FILTER COMPLETE - 60% FIELD ISSUES SOLVED - READY FOR NEXT PHASE**
+
+---
+
+## 🎨 **UI/UX DESIGN SYSTEM**
+
+### **Design Philosophy**
+POS Felix follows a modern, professional design philosophy focused on:
+- **Consistency**: Unified design language across all screens
+- **Accessibility**: Touch-optimized for mobile-first experience
+- **Professionalism**: Business-appropriate aesthetics
+- **Efficiency**: Streamlined workflows for daily operations
+
+### **Visual Design Standards**
+
+#### **Color Palette**
+- **Primary Green**: `#4CAF50` - Action buttons, success states
+- **Secondary Green**: `#45A049` - Gradients, hover states
+- **Text Colors**: 
+  - Dark: `#1A1A1A` - Primary text
+  - Gray: `#666666` - Secondary text
+  - Light Gray: `#999999` - Subtle text
+- **Background**: `#F5F5F5` - Clean, professional background
+- **Cards**: `#FFFFFF` - Clean card backgrounds with subtle shadows
+
+#### **Typography System**
+- **Headers**: 18px, FontWeight.w600 - Section titles
+- **Body Text**: 16px, FontWeight.w500 - Primary content
+- **Subtitles**: 14px, FontWeight.w400 - Secondary information
+- **Captions**: 12px, FontWeight.w400 - Timestamps, metadata
+
+#### **Spacing System**
+- **Small**: 8px - Tight spacing
+- **Medium**: 16px - Standard spacing
+- **Large**: 24px - Section spacing
+- **Extra Large**: 32px - Screen padding
+
+### **Component Design Patterns**
+
+#### **Card-Based Layout**
+All major UI elements use consistent card design:
+```dart
+Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.05),
+        blurRadius: 4,
+        offset: Offset(0, 2),
+      ),
+    ],
+  ),
+)
+```
+
+#### **Professional Headers**
+Consistent header design across all screens:
+- Clean section titles with proper hierarchy
+- Subtle item counts and metadata
+- Professional gradient action buttons
+- Consistent spacing and alignment
+
+#### **Interactive Elements**
+- **Buttons**: Gradient backgrounds with subtle shadows
+- **Icons**: Colored backgrounds with rounded corners
+- **Lists**: Card-based items with proper spacing
+- **Forms**: Clean input fields with validation states
+
+### **Recent UI Unification (January 3, 2026)**
+
+#### **Daily Expense UI Redesign** ✅ **COMPLETE**
+Successfully unified the daily expense interface to match the professional design of fixed expenses:
+
+**Key Improvements:**
+- **Subtle Date Header**: Replaced prominent total card with clean, professional header
+- **Formatted Dates**: Indonesian date formatting (e.g., "Jumat, 3 Januari 2026")
+- **Professional Typography**: Consistent font weights and sizes
+- **Card-Based Layout**: Clean expense items with proper proportions
+- **Visual Consistency**: Matching design language with fixed expenses
+
+**Before vs After:**
+- ❌ **Before**: Prominent green total card, basic styling, inconsistent design
+- ✅ **After**: Subtle header, professional cards, unified design language
+
+**Technical Implementation:**
+- Updated `daily_expense_tab_v2.dart` with complete UI redesign
+- Added Indonesian date formatting helper
+- Implemented consistent card-based layout
+- Removed old unused files for cleaner codebase
+
+#### **Design System Benefits**
+1. **User Experience**: More mature, business-appropriate interface
+2. **Consistency**: Unified design language across expense management
+3. **Professionalism**: Clean, proportional layouts throughout
+4. **Maintainability**: Consistent patterns for easier development
+
+### **Responsive Design Implementation**
+
+#### **ResponsiveUtils System**
+All UI elements use the unified responsive system:
+```dart
+// Responsive width calculation
+final width = ResponsiveUtils.getResponsiveWidth(context, 100);
+
+// Responsive font sizing
+final fontSize = ResponsiveUtils.getResponsiveFontSize(
+  context, 
+  phoneSize: 14,
+  tabletSize: 16,
+  desktopSize: 18,
+);
+
+// Responsive padding
+final padding = ResponsiveUtils.getResponsivePadding(context);
+```
+
+#### **Screen Size Adaptations**
+- **Phone**: Optimized for single-hand operation
+- **Tablet**: Enhanced layouts with more information density
+- **Desktop**: Full-featured interface with advanced controls
+
+### **Animation Standards**
+- **Duration**: 300ms for all transitions
+- **Curves**: `Curves.easeInOut` for smooth animations
+- **Micro-interactions**: Subtle hover effects and state changes
+- **Loading States**: Professional loading indicators
+
+### **Accessibility Features**
+- **Touch Targets**: Minimum 44px for all interactive elements
+- **Contrast**: WCAG AA compliant color combinations
+- **Text Scaling**: Support for system font size preferences
+- **Navigation**: Logical tab order and focus management
+
+---
+
+## 🎯 **UI/UX ROADMAP**
+
+### **Completed UI Improvements** ✅
+- [x] **Daily Expense UI Unification** - Professional design matching fixed expenses
+- [x] **Advanced Filter System** - Clean, focused interface with proper UX patterns
+- [x] **Responsive Design System** - 100% ResponsiveUtils implementation
+- [x] **Professional Card Layouts** - Consistent design across all screens
+- [x] **Enhanced Typography** - Proper hierarchy and readability
+
+### **Next UI Priorities** 🎯
+- [ ] **Modern Category UI** - Card-based category selection (Critical Priority)
+- [ ] **Transaction Receipt Design** - Professional receipt layouts
+- [ ] **Enhanced Dashboard** - Advanced analytics visualization
+- [ ] **Unified Date Picker** - Consistent date selection experience
+
+### **Future UI Enhancements** 🔮
+- [ ] **Dark Mode Support** - Professional dark theme
+- [ ] **Custom Themes** - Brand customization options
+- [ ] **Advanced Animations** - Enhanced micro-interactions
+- [ ] **Accessibility Improvements** - Screen reader support
+
+---
+
+**Design Status**: ✅ **PROFESSIONAL UI SYSTEM ESTABLISHED - DAILY EXPENSE UNIFICATION COMPLETE**

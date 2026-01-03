@@ -116,43 +116,67 @@ final fixedExpenseListProvider =
       return FixedExpenseListNotifier(repository);
     });
 
-/// Real-time fixed expenses stream provider using Supabase Realtime
-final fixedExpensesStreamProvider =
-    StreamProvider.autoDispose<List<FixedExpenseModel>>((ref) {
-      AppLogger.info(
-        '🔧 fixedExpensesStreamProvider called - Using Supabase Realtime',
-      );
+/// Real-time fixed expenses stream provider using polling (more stable than Realtime)
+final fixedExpensesStreamProvider = StreamProvider<List<FixedExpenseModel>>((
+  ref,
+) {
+  AppLogger.info(
+    '🔧 fixedExpensesStreamProvider called - Using polling for stability',
+  );
 
-      if (!SupabaseConfig.isConfigured) {
-        AppLogger.info('🔧 Supabase not configured, returning empty stream');
-        return Stream.value([]);
-      }
+  if (!SupabaseConfig.isConfigured) {
+    AppLogger.info('🔧 Supabase not configured, returning empty stream');
+    return Stream.value([]);
+  }
 
-      try {
-        final supabase = Supabase.instance.client;
+  try {
+    final supabase = Supabase.instance.client;
 
-        return supabase
-            .from('fixed_expenses')
-            .stream(primaryKey: ['id'])
-            .eq('is_active', true)
-            .order('created_at')
-            .map((rows) {
-              AppLogger.info(
-                '🔧 Realtime update: ${rows.length} fixed expenses',
-              );
-              return rows
-                  .map((json) => FixedExpenseModel.fromJson(json))
-                  .toList();
-            })
-            .handleError((error) {
-              AppLogger.error('Error in fixed expenses realtime stream', error);
-              return <FixedExpenseModel>[];
-            });
-      } catch (e) {
-        AppLogger.error(
-          'Failed to initialize fixed expense realtime stream',
-          e,
-        );
-        return Stream.value([]);
-      }
-    });
+    // Use simple polling approach
+    return Stream.periodic(
+      const Duration(seconds: 5),
+      (_) => _fetchFixedExpenses(supabase),
+    ).asyncExpand((future) => future.asStream()).distinct().handleError(
+      (error) {
+        AppLogger.error('Error in fixed expenses polling stream', error);
+        // Return empty list on error instead of throwing
+      },
+      test: (error) => true, // Handle all errors
+    );
+  } catch (e) {
+    AppLogger.error('Failed to initialize fixed expense polling stream', e);
+    return Stream.value([]);
+  }
+});
+
+/// Helper function to fetch fixed expenses
+Future<List<FixedExpenseModel>> _fetchFixedExpenses(
+  SupabaseClient supabase,
+) async {
+  try {
+    AppLogger.info('🔧 Fetching fixed expenses from database...');
+
+    final response = await supabase
+        .from('fixed_expenses')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at');
+
+    AppLogger.info(
+      '🔧 Received ${response.length} fixed expenses from database',
+    );
+
+    final expenses = response
+        .map((json) => FixedExpenseModel.fromJson(json))
+        .toList();
+
+    for (final expense in expenses) {
+      AppLogger.info('🔧 Expense: ${expense.name} - ${expense.amount}');
+    }
+
+    return expenses;
+  } catch (e) {
+    AppLogger.error('Error fetching fixed expenses', e);
+    return [];
+  }
+}

@@ -68,7 +68,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         const SizedBox(height: AppSpacing.md),
                         _buildQuickStats(dashboardState),
                         const SizedBox(height: AppSpacing.lg),
-                        // TODO: Fix expense/income comparison chart
+                        // Expense/Income comparison chart - method needs to be implemented
                         // _buildExpenseIncomeComparison(ref, _selectedPeriod),
                         // const SizedBox(height: AppSpacing.lg),
                         _buildTrendChart(),

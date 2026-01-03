@@ -260,9 +260,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
       );
 
       // Use polling instead of Realtime to avoid connection issues
-      // Poll every 30 seconds for updates (reduced from 5 seconds)
+      // Poll every 60 seconds for dashboard updates (reduced frequency for better performance)
       return Stream.periodic(
-        const Duration(seconds: 30),
+        const Duration(seconds: 60),
         (_) => _fetchInitialDashboardData(startDate, endDate),
       ).asyncExpand((future) => future.asStream()).distinct().handleError(
         (error) {
@@ -382,7 +382,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
         totalExpenses += (row['amount'] as num).toInt();
       }
 
-      // Add real fixed expenses to total expenses for dashboard calculation
+      // Add fixed expenses as daily amounts (properly calculated)
       try {
         final fixedExpenseResponse = await _client
             .from('fixed_expenses')
@@ -395,14 +395,17 @@ class DashboardRepositoryImpl implements DashboardRepository {
         }
 
         // Calculate daily portion of monthly fixed expenses
+        // Get number of days in current month for accurate calculation
+        final now = DateTime.now();
+        final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
         final fixedExpensesDaily = totalFixedExpenses > 0
-            ? (totalFixedExpenses / 30).round()
+            ? (totalFixedExpenses / daysInMonth).round()
             : 0;
 
         totalExpenses += fixedExpensesDaily;
 
         AppLogger.info(
-          '💡 Fixed expenses: Monthly=Rp ${_formatNumber(totalFixedExpenses)}, Daily=Rp ${_formatNumber(fixedExpensesDaily)}',
+          '💡 Fixed expenses integrated: Monthly=Rp ${_formatNumber(totalFixedExpenses)}, Daily=Rp ${_formatNumber(fixedExpensesDaily)} (${daysInMonth} days in month)',
         );
       } catch (e) {
         AppLogger.error('Error fetching fixed expenses for dashboard', e);
@@ -522,9 +525,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
   Stream<ProfitIndicator> _buildProfitStream(DateTime start, DateTime end) {
     try {
       // Use polling instead of Realtime to avoid connection issues
-      // Poll every 5 seconds for updates
+      // Poll every 60 seconds for updates (reduced frequency for better performance)
       return Stream.periodic(
-            const Duration(seconds: 5),
+            const Duration(seconds: 60),
             (_) => _fetchInitialProfitData(start, end),
           )
           .asyncExpand((future) => future.asStream())
@@ -641,10 +644,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
 
     try {
       // Use polling instead of Realtime to avoid connection issues
-      // Poll every 5 seconds for updates
+      // Poll every 60 seconds for updates (reduced frequency for better performance)
       final stream =
           Stream.periodic(
-                const Duration(seconds: 5),
+                const Duration(seconds: 60),
                 (_) => _fetchInitialTaxData(month, year, startDate, endDate),
               )
               .asyncExpand((future) => future.asStream())

@@ -241,8 +241,8 @@ final todayExpensesStreamProvider = StreamProvider.autoDispose<List<ExpenseModel
 });
 
 /// Real-time expenses by date stream provider using Supabase Realtime
-final expensesByDateStreamProvider = StreamProvider.autoDispose
-    .family<List<ExpenseModel>, DateTime>((ref, date) {
+final expensesByDateStreamProvider =
+    StreamProvider.family<List<ExpenseModel>, DateTime>((ref, date) {
       if (!SupabaseConfig.isConfigured) {
         return Stream.value([]);
       }

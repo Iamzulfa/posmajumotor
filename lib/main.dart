@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,11 +9,9 @@ import 'config/routes/route_generator.dart';
 import 'injection_container.dart';
 import 'core/utils/logger.dart';
 import 'core/services/hive_adapters.dart';
-import 'core/utils/auto_responsive.dart';
 import 'core/services/offline_service.dart';
 import 'core/services/cache_seeder.dart';
-import 'debug/simple_debug.dart';
-import 'debug/fixed_expense_debug.dart';
+// Debug imports removed for production
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,11 +33,11 @@ void main() async {
 
     await setupServiceLocator();
 
-    // Debug database (only in debug mode)
-    if (kDebugMode) {
-      await SimpleDebug.checkDatabase();
-      await FixedExpenseDebug.checkFixedExpenses();
-    }
+    // Debug database checks removed for production
+    // if (kDebugMode) {
+    //   await SimpleDebug.checkDatabase();
+    //   await FixedExpenseDebug.checkFixedExpenses();
+    // }
 
     // Replace splash with main app
     runApp(const ProviderScope(child: MyApp()));
@@ -120,13 +117,6 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) {
-        // Auto-initialize responsive system on first build
-        if (!AutoResponsive.isInitialized) {
-          AutoResponsive.initialize(context);
-        }
-        return child ?? const SizedBox.shrink();
-      },
     );
   }
 }

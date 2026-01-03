@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../config/theme/app_colors.dart';
-import '../../../core/utils/auto_responsive.dart';
+import '../../../core/utils/auto_responsive_extensions.dart';
 import 'dashboard/dashboard_screen.dart';
 import '../kasir/inventory/inventory_screen.dart';
 import '../kasir/transaction/transaction_screen.dart';
@@ -40,14 +40,17 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8.ar,
-            offset: Offset(0, -2.ah),
+            blurRadius: 8.ar(context),
+            offset: Offset(0, -2.ah(context)),
           ),
         ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.aw, vertical: 8.ah),
+          padding: EdgeInsets.symmetric(
+            horizontal: 4.aw(context),
+            vertical: 8.ah(context),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -110,9 +113,12 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => setState(() => _currentIndex = index),
-        borderRadius: BorderRadius.circular(12.ar),
+        borderRadius: BorderRadius.circular(12.ar(context)),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.aw, vertical: 8.ah),
+          padding: EdgeInsets.symmetric(
+            horizontal: 4.aw(context),
+            vertical: 8.ah(context),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -120,20 +126,17 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
               Icon(
                 isActive ? activeIcon : icon,
                 color: isActive ? AppColors.primary : AppColors.textLight,
-                size: 24.aw,
+                size: 24.aw(context),
               ),
-              AR.h(4),
-              SizedBox(
-                width: 50.aw,
-                child: AText(
-                  label,
-                  fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  color: isActive ? AppColors.primary : AppColors.textLight,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
+              AR.h(context, 4),
+              AText(
+                label,
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive ? AppColors.primary : AppColors.textLight,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ],
           ),
