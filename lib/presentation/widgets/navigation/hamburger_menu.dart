@@ -491,7 +491,6 @@ class HamburgerMenu extends ConsumerWidget {
 
   void _openManualSorting(BuildContext context) {
     Navigator.pop(context); // Close drawer first
-    // TODO: Implement manual sorting screen
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Fitur sortir manual akan segera hadir'),
@@ -518,7 +517,6 @@ class HamburgerMenu extends ConsumerWidget {
   }
 
   Widget _buildQuickFiltersModal(BuildContext context) {
-    // TODO: Implement quick filters modal with presets
     return Container(
       padding: ResponsiveUtils.getResponsivePadding(context),
       child: Column(
@@ -572,7 +570,6 @@ class HamburgerMenu extends ConsumerWidget {
 
   void _showViewModeOptions(BuildContext context) {
     Navigator.pop(context); // Close drawer first
-    // TODO: Implement view mode options
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Pengaturan tampilan akan segera hadir'),
@@ -583,7 +580,6 @@ class HamburgerMenu extends ConsumerWidget {
 
   void _showColumnSettings(BuildContext context) {
     Navigator.pop(context); // Close drawer first
-    // TODO: Implement column settings
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Pengaturan kolom akan segera hadir'),

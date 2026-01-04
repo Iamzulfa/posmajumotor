@@ -9,8 +9,7 @@ import '../../../widgets/common/sync_status_widget.dart';
 import '../../../widgets/common/loading_widget.dart';
 import '../../../providers/dashboard_provider.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../../domain/repositories/transaction_repository.dart'
-    show DailySummary;
+import '../analytics/analytics_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -20,13 +19,11 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  String _selectedPeriod = 'hari'; // 'hari', 'minggu', 'bulan'
-
   @override
   Widget build(BuildContext context) {
-    // Watch real-time stream with selected period
+    // Watch real-time stream with daily period
     final dashboardAsync = ref.watch(
-      dashboardStreamProvider(DashboardPeriod.fromString(_selectedPeriod)),
+      dashboardStreamProvider(DashboardPeriod.fromString('hari')),
     );
 
     final syncStatus = dashboardAsync.when(
@@ -42,7 +39,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           data: (dashboardState) => RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(dashboardStreamProvider);
-              ref.invalidate(last7DaysSummaryProvider);
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -66,14 +62,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         const SizedBox(height: AppSpacing.md),
                         _buildTaxIndicator(dashboardState),
                         const SizedBox(height: AppSpacing.md),
-                        _buildQuickStats(dashboardState),
+                        // Lazy load quick stats
+                        FutureBuilder(
+                          future: Future.delayed(
+                            const Duration(milliseconds: 100),
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            return _buildQuickStats(dashboardState);
+                          },
+                        ),
                         const SizedBox(height: AppSpacing.lg),
-                        // Expense/Income comparison chart - method needs to be implemented
-                        // _buildExpenseIncomeComparison(ref, _selectedPeriod),
-                        // const SizedBox(height: AppSpacing.lg),
-                        _buildTrendChart(),
-                        const SizedBox(height: AppSpacing.lg),
-                        _buildTierBreakdownSection(dashboardState),
+                        // Lazy load analytics button
+                        FutureBuilder(
+                          future: Future.delayed(
+                            const Duration(milliseconds: 200),
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const SizedBox(height: 80);
+                            }
+                            return _buildAnalyticsButton();
+                          },
+                        ),
                         const SizedBox(height: AppSpacing.lg),
                       ],
                     ),
@@ -176,6 +196,76 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 : 'Syncing...',
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsButton() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.primary.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: InkWell(
+        onTap: () {
+          // Navigate to analytics screen
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.analytics,
+                color: AppColors.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Analytics Lanjutan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Tap untuk melihat analisis detail transaksi, pembayaran, dan profit',
+                    style: TextStyle(fontSize: 12, color: AppColors.textGray),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppColors.primary,
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -593,644 +683,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildTrendChart() {
-    // Watch 7 days summary provider
-    final last7DaysAsync = ref.watch(last7DaysSummaryProvider);
-
-    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 16,
-      tabletSize: 18,
-      desktopSize: 20,
-    );
-    final chartHeight = ResponsiveUtils.getResponsiveHeight(
-      context,
-      phoneHeight: 180,
-      tabletHeight: 220,
-      desktopHeight: 260,
-    );
-    final containerPadding = ResponsiveUtils.getResponsivePaddingCustom(
-      context,
-      phoneValue: 16,
-      tabletValue: 20,
-      desktopValue: 24,
-    );
-    final legendSpacing = ResponsiveUtils.getResponsiveSpacing(
-      context,
-      phoneSpacing: 16,
-      tabletSpacing: 20,
-      desktopSpacing: 24,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Trend 7 Hari Terakhir',
-          style: TextStyle(
-            fontSize: titleFontSize,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-          ),
-        ),
-        SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 2)),
-        Container(
-          padding: containerPadding,
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(
-              ResponsiveUtils.getResponsiveBorderRadius(context) * 1.2,
-            ),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.textGray.withValues(alpha: 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: last7DaysAsync.when(
-            data: (dailySummaries) {
-              // Calculate max values for scaling
-              int maxOmset = 0;
-              int maxProfit = 0;
-              for (final summary in dailySummaries) {
-                if (summary.totalOmset > maxOmset) {
-                  maxOmset = summary.totalOmset;
-                }
-                if (summary.totalProfit > maxProfit) {
-                  maxProfit = summary.totalProfit;
-                }
-              }
-
-              return Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildLegendItem('Omset', AppColors.info),
-                      SizedBox(width: legendSpacing * 2),
-                      _buildLegendItem('Profit', AppColors.success),
-                    ],
-                  ),
-                  SizedBox(
-                    height: ResponsiveUtils.getPercentageHeight(context, 3),
-                  ),
-                  SizedBox(
-                    height: chartHeight,
-                    child: CustomPaint(
-                      size: const Size(double.infinity, 0),
-                      painter: _TrendChartPainter(
-                        dailySummaries: dailySummaries,
-                        maxOmset: maxOmset,
-                        maxProfit: maxProfit,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: ResponsiveUtils.getPercentageHeight(context, 2),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveUtils.getPercentageWidth(
-                        context,
-                        2,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: dailySummaries
-                          .map(
-                            (summary) => Text(
-                              _formatDateLabel(summary.date),
-                              style: TextStyle(
-                                fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                  context,
-                                  phoneSize: 11,
-                                  tabletSize: 12,
-                                  desktopSize: 13,
-                                ),
-                                color: AppColors.textGray,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ],
-              );
-            },
-            loading: () => SizedBox(
-              height: chartHeight,
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, _) => SizedBox(
-              height: chartHeight,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Error loading chart',
-                      style: TextStyle(color: AppColors.error),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLegendItem(String label, Color color) {
-    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 13,
-      tabletSize: 14,
-      desktopSize: 15,
-    );
-    final indicatorSize = ResponsiveUtils.getResponsiveHeight(
-      context,
-      phoneHeight: 12,
-      tabletHeight: 14,
-      desktopHeight: 16,
-    );
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: ResponsiveUtils.getPercentageWidth(context, 3),
-        vertical: ResponsiveUtils.getPercentageHeight(context, 1),
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(
-          ResponsiveUtils.getResponsiveBorderRadius(context),
-        ),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: indicatorSize,
-            height: indicatorSize,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 2)),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: labelFontSize,
-              color: AppColors.textDark,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTierBreakdownSection(DashboardState state) {
-    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 15,
-      tabletSize: 17,
-      desktopSize: 19,
-    );
-    final isPhone = ResponsiveUtils.isPhone(context);
-    final spacing = ResponsiveUtils.getResponsiveSpacing(
-      context,
-      phoneSpacing: 8,
-      tabletSpacing: 12,
-      desktopSpacing: 16,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        isPhone
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Breakdown per Tier',
-                    style: TextStyle(
-                      fontSize: titleFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  SizedBox(
-                    height: ResponsiveUtils.getPercentageHeight(context, 1.5),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(
-                        ResponsiveUtils.getResponsiveBorderRadius(context),
-                      ),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildPeriodButton('Hari', 'hari'),
-                        Container(width: 1, color: AppColors.border),
-                        _buildPeriodButton('Minggu', 'minggu'),
-                        Container(width: 1, color: AppColors.border),
-                        _buildPeriodButton('Bulan', 'bulan'),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Breakdown per Tier',
-                    style: TextStyle(
-                      fontSize: titleFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(
-                        ResponsiveUtils.getResponsiveBorderRadius(context),
-                      ),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildPeriodButton('Hari', 'hari'),
-                        Container(width: 1, color: AppColors.border),
-                        _buildPeriodButton('Minggu', 'minggu'),
-                        Container(width: 1, color: AppColors.border),
-                        _buildPeriodButton('Bulan', 'bulan'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-        SizedBox(height: spacing),
-        _buildTierBreakdown(state),
-      ],
-    );
-  }
-
-  Widget _buildPeriodButton(String label, String period) {
-    final isSelected = _selectedPeriod == period;
-    final buttonFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 11,
-      tabletSize: 12,
-      desktopSize: 13,
-    );
-    final buttonPadding = ResponsiveUtils.getResponsivePaddingCustom(
-      context,
-      phoneValue: 8,
-      tabletValue: 12,
-      desktopValue: 16,
-    );
-
-    return InkWell(
-      onTap: () => setState(() => _selectedPeriod = period),
-      child: Container(
-        padding: buttonPadding,
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: buttonFontSize,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? AppColors.primary : AppColors.textGray,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTierBreakdown(DashboardState state) {
-    final tierData = state.tierBreakdown;
-
-    // Calculate total omset across all tiers
-    int totalOmset = 0;
-    for (final tier in tierData.values) {
-      totalOmset += tier.totalOmset;
-    }
-
-    // Build tier rows only for tiers with transactions
-    final tierRows = <Widget>[];
-    final tiers = [
-      ('UMUM', 'Orang Umum', AppColors.info),
-      ('BENGKEL', 'Bengkel', AppColors.warning),
-      ('GROSSIR', 'Grossir', AppColors.success),
-    ];
-
-    final spacing = ResponsiveUtils.getResponsiveSpacing(
-      context,
-      phoneSpacing: 8,
-      tabletSpacing: 10,
-      desktopSpacing: 12,
-    );
-
-    for (int i = 0; i < tiers.length; i++) {
-      final (tierKey, tierLabel, tierColor) = tiers[i];
-      final tierSummary = tierData[tierKey];
-
-      if (tierSummary != null && tierSummary.transactionCount > 0) {
-        final percentage = totalOmset > 0
-            ? (tierSummary.totalOmset / totalOmset) * 100
-            : 0.0;
-
-        tierRows.add(
-          _buildTierRow(
-            tierLabel,
-            tierSummary.totalOmset,
-            tierSummary.totalHpp,
-            tierSummary.transactionCount,
-            percentage,
-            tierColor,
-          ),
-        );
-
-        if (i < tiers.length - 1) {
-          tierRows.add(SizedBox(height: spacing));
-        }
-      }
-    }
-
-    return Column(
-      children: [
-        if (tierRows.isNotEmpty)
-          Column(children: tierRows)
-        else
-          Container(
-            padding: ResponsiveUtils.getResponsivePadding(context),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(
-                ResponsiveUtils.getResponsiveBorderRadius(context),
-              ),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Center(
-              child: Text(
-                'Belum ada transaksi ${_getPeriodLabel()}',
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getResponsiveFontSize(
-                    context,
-                    phoneSize: 12,
-                    tabletSize: 14,
-                    desktopSize: 14,
-                  ),
-                  color: AppColors.textGray,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildTierRow(
-    String tier,
-    int omset,
-    int hpp,
-    int transactions,
-    double percentage,
-    Color color,
-  ) {
-    final profit = omset - hpp;
-    final marginPercent = omset > 0 ? (profit / omset) * 100 : 0.0;
-
-    final tierNameFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 15,
-      tabletSize: 16,
-      desktopSize: 17,
-    );
-    final tierCountFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 12,
-      tabletSize: 13,
-      desktopSize: 14,
-    );
-    final tierAmountFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 15,
-      tabletSize: 16,
-      desktopSize: 17,
-    );
-    final tierPercentFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 12,
-      tabletSize: 13,
-      desktopSize: 14,
-    );
-    final containerPadding = ResponsiveUtils.getResponsivePaddingCustom(
-      context,
-      phoneValue: 16,
-      tabletValue: 20,
-      desktopValue: 24,
-    );
-    final indicatorSize = ResponsiveUtils.getResponsiveHeight(
-      context,
-      phoneHeight: 10,
-      tabletHeight: 12,
-      desktopHeight: 14,
-    );
-
-    return Container(
-      padding: containerPadding,
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(
-          ResponsiveUtils.getResponsiveBorderRadius(context) * 1.2,
-        ),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textGray.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Row(
-            children: [
-              Container(
-                width: indicatorSize,
-                height: indicatorSize,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              SizedBox(width: ResponsiveUtils.getPercentageWidth(context, 3)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tier,
-                      style: TextStyle(
-                        fontSize: tierNameFontSize,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                    SizedBox(
-                      height: ResponsiveUtils.getPercentageHeight(context, 0.5),
-                    ),
-                    Text(
-                      '$transactions transaksi',
-                      style: TextStyle(
-                        fontSize: tierCountFontSize,
-                        color: AppColors.textGray,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Rp ${_formatNumber(omset)}',
-                    style: TextStyle(
-                      fontSize: tierAmountFontSize,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  SizedBox(
-                    height: ResponsiveUtils.getPercentageHeight(context, 0.5),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveUtils.getPercentageWidth(
-                        context,
-                        2,
-                      ),
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${percentage.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: tierPercentFontSize,
-                        fontWeight: FontWeight.w600,
-                        color: color,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 3)),
-          // Detail breakdown with better spacing
-          Container(
-            padding: EdgeInsets.all(
-              ResponsiveUtils.getPercentageWidth(context, 3),
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(
-                ResponsiveUtils.getResponsiveBorderRadius(context),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildTierDetail('Omset', omset),
-                _buildTierDetail('HPP', hpp),
-                _buildTierDetail('Profit', profit),
-                _buildTierDetail('Margin', marginPercent, isPercent: true),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTierDetail(
-    String label,
-    dynamic value, {
-    bool isPercent = false,
-  }) {
-    final displayValue = isPercent
-        ? '${(value as double).toStringAsFixed(1)}%'
-        : 'Rp ${_formatNumber(value as int)}';
-
-    final labelFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 11,
-      tabletSize: 12,
-      desktopSize: 13,
-    );
-    final valueFontSize = ResponsiveUtils.getResponsiveFontSize(
-      context,
-      phoneSize: 12,
-      tabletSize: 13,
-      desktopSize: 14,
-    );
-
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: labelFontSize,
-              color: AppColors.textGray,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: ResponsiveUtils.getPercentageHeight(context, 1)),
-          Text(
-            displayValue,
-            style: TextStyle(
-              fontSize: valueFontSize,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getPeriodLabel() {
-    switch (_selectedPeriod) {
-      case 'minggu':
-        return 'minggu ini';
-      case 'bulan':
-        return 'bulan ini';
-      default:
-        return 'hari ini';
-    }
-  }
-
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -1247,108 +699,4 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
     return 'Rp $number';
   }
-
-  String _formatDateLabel(DateTime date) {
-    // Show day name for today, yesterday, etc. Otherwise show date
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    if (dateOnly == today) {
-      return 'Hari ini';
-    } else if (dateOnly == today.subtract(const Duration(days: 1))) {
-      return 'Kemarin';
-    } else {
-      // Show day abbreviation + date
-      final dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-      return '${dayNames[date.weekday - 1]}\n${date.day}';
-    }
-  }
-}
-
-class _TrendChartPainter extends CustomPainter {
-  final List<DailySummary> dailySummaries;
-  final int maxOmset;
-  final int maxProfit;
-
-  _TrendChartPainter({
-    required this.dailySummaries,
-    required this.maxOmset,
-    required this.maxProfit,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final omsetPaint = Paint()
-      ..color = AppColors.info
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final profitPaint = Paint()
-      ..color = AppColors.success
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final gridPaint = Paint()
-      ..color = AppColors.border
-      ..strokeWidth = 1;
-
-    // Draw grid
-    for (int i = 0; i <= 4; i++) {
-      final y = (size.height / 4) * i;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    if (dailySummaries.isEmpty) {
-      return;
-    }
-
-    final omsetPath = Path();
-    final profitPath = Path();
-
-    // Use separate scaling for omset and profit to show both clearly
-    // Omset uses 60% of height, profit uses 40% of height
-    final omsetHeight = size.height * 0.6;
-    final profitHeight = size.height * 0.4;
-
-    for (int i = 0; i < dailySummaries.length; i++) {
-      final summary = dailySummaries[i];
-      final x = (size.width / (dailySummaries.length - 1)) * i;
-
-      // Calculate Y positions with separate scaling
-      final omsetNormalized = maxOmset > 0
-          ? (summary.totalOmset / maxOmset)
-          : 0.0;
-      final profitNormalized = maxProfit > 0
-          ? (summary.totalProfit / maxProfit)
-          : 0.0;
-
-      // Omset line in upper portion
-      final omsetY = size.height - (omsetHeight * omsetNormalized);
-      // Profit line in lower portion (offset down)
-      final profitY = size.height - (profitHeight * profitNormalized);
-
-      if (i == 0) {
-        omsetPath.moveTo(x, omsetY);
-        profitPath.moveTo(x, profitY);
-      } else {
-        omsetPath.lineTo(x, omsetY);
-        profitPath.lineTo(x, profitY);
-      }
-
-      // Draw data points
-      canvas.drawCircle(Offset(x, omsetY), 4, Paint()..color = AppColors.info);
-      canvas.drawCircle(
-        Offset(x, profitY),
-        4,
-        Paint()..color = AppColors.success,
-      );
-    }
-
-    canvas.drawPath(omsetPath, omsetPaint);
-    canvas.drawPath(profitPath, profitPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

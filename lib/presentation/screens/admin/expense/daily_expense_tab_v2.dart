@@ -30,22 +30,30 @@ class DailyExpenseTabV2 extends ConsumerWidget {
           '🔧 Daily expenses data received: ${expenses.length} items',
         );
 
-        return Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Date Header with Total (Sleek Design)
-              _buildDateHeader(context, expenses),
-              const SizedBox(height: AppSpacing.md),
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date Header with Total (Sleek Design)
+                _buildDateHeader(context, expenses),
+                const SizedBox(height: AppSpacing.md),
 
-              // Header with Actions
-              _buildHeader(context, expenses.length),
-              const SizedBox(height: AppSpacing.md),
+                // Header with Actions
+                _buildHeader(context, expenses.length),
+                const SizedBox(height: AppSpacing.md),
 
-              // Expenses List (COPY WORKING PATTERN)
-              Expanded(child: _buildExpensesList(context, ref, expenses)),
-            ],
+                // Expenses List (COPY WORKING PATTERN) - Now with constrained height
+                SizedBox(
+                  height:
+                      MediaQuery.of(context).size.height *
+                      0.4, // Constrain height for scrolling
+                  child: _buildExpensesList(context, ref, expenses),
+                ),
+              ],
+            ),
           ),
         );
       },

@@ -70,15 +70,24 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         },
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(enrichedProductsAsync),
-            _buildManagementButton(),
-            if (_filterManager?.hasActiveFilters == true) _buildActiveFilters(),
-            _buildSearchAndFilter(),
-            _buildResultCount(enrichedProductsAsync),
-            Expanded(child: _buildProductList(enrichedProductsAsync)),
-          ],
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHeader(enrichedProductsAsync),
+              _buildManagementButton(),
+              if (_filterManager?.hasActiveFilters == true)
+                _buildActiveFilters(),
+              _buildSearchAndFilter(),
+              _buildResultCount(enrichedProductsAsync),
+              SizedBox(
+                height:
+                    MediaQuery.of(context).size.height *
+                    0.5, // Constrain height
+                child: _buildProductList(enrichedProductsAsync),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

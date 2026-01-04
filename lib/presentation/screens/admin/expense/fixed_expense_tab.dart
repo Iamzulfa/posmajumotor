@@ -23,24 +23,30 @@ class FixedExpenseTab extends ConsumerWidget {
           '🔧 Fixed expenses data received: ${fixedExpenses.length} items',
         );
 
-        return Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Summary Card
-              _buildSummaryCard(fixedExpenses),
-              const SizedBox(height: AppSpacing.md),
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary Card
+                _buildSummaryCard(fixedExpenses),
+                const SizedBox(height: AppSpacing.md),
 
-              // Header with Actions
-              _buildHeader(context),
-              const SizedBox(height: AppSpacing.md),
+                // Header with Actions
+                _buildHeader(context),
+                const SizedBox(height: AppSpacing.md),
 
-              // Enhanced Fixed Expenses List with Categories
-              Expanded(
-                child: _buildFixedExpensesList(context, ref, fixedExpenses),
-              ),
-            ],
+                // Enhanced Fixed Expenses List with Categories - Now with constrained height
+                SizedBox(
+                  height:
+                      MediaQuery.of(context).size.height *
+                      0.4, // Constrain height for scrolling
+                  child: _buildFixedExpensesList(context, ref, fixedExpenses),
+                ),
+              ],
+            ),
           ),
         );
       },

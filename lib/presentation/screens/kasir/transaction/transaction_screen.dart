@@ -139,51 +139,57 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
         children: [
           // Main content
           SafeArea(
-            child: Column(
-              children: [
-                AppHeader(
-                  title: 'Transaksi Penjualan',
-                  syncStatus: syncStatus,
-                  lastSyncTime: syncStatus == SyncStatus.online
-                      ? 'Real-time'
-                      : 'Syncing...',
-                ),
-                // Tier Selector
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  AppHeader(
+                    title: 'Transaksi Penjualan',
+                    syncStatus: syncStatus,
+                    lastSyncTime: syncStatus == SyncStatus.online
+                        ? 'Real-time'
+                        : 'Syncing...',
                   ),
-                  child: PillSelector<String>(
-                    label: 'Tier Pembeli',
-                    items: const ['UMUM', 'BENGKEL', 'GROSSIR'],
-                    selectedItem: cartState.tier,
-                    itemLabel: (item) {
-                      switch (item) {
-                        case 'UMUM':
-                          return 'Orang Umum';
-                        case 'BENGKEL':
-                          return 'Bengkel';
-                        case 'GROSSIR':
-                          return 'Grossir';
-                        default:
-                          return item;
-                      }
-                    },
-                    onSelected: (item) =>
-                        ref.read(cartProvider.notifier).setTier(item),
+                  // Tier Selector
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    child: PillSelector<String>(
+                      label: 'Tier Pembeli',
+                      items: const ['UMUM', 'BENGKEL', 'GROSSIR'],
+                      selectedItem: cartState.tier,
+                      itemLabel: (item) {
+                        switch (item) {
+                          case 'UMUM':
+                            return 'Orang Umum';
+                          case 'BENGKEL':
+                            return 'Bengkel';
+                          case 'GROSSIR':
+                            return 'Grossir';
+                          default:
+                            return item;
+                        }
+                      },
+                      onSelected: (item) =>
+                          ref.read(cartProvider.notifier).setTier(item),
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                // Product Section
-                _buildProductSection(cartState),
-                const SizedBox(height: AppSpacing.sm),
-                // Product List - Now takes full remaining space
-                Expanded(
-                  child: _buildProductList(enrichedProductsAsync, cartState),
-                ),
-                // Bottom padding for floating cart button
-                SizedBox(height: cartState.items.isNotEmpty ? 80 : 20),
-              ],
+                  const SizedBox(height: AppSpacing.md),
+                  // Product Section
+                  _buildProductSection(cartState),
+                  const SizedBox(height: AppSpacing.sm),
+                  // Product List - Now with constrained height for scrolling
+                  SizedBox(
+                    height:
+                        MediaQuery.of(context).size.height *
+                        0.5, // Constrain height
+                    child: _buildProductList(enrichedProductsAsync, cartState),
+                  ),
+                  // Bottom padding for floating cart button
+                  SizedBox(height: cartState.items.isNotEmpty ? 80 : 20),
+                ],
+              ),
             ),
           ),
 
