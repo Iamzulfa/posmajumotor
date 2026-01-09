@@ -15,5 +15,6 @@ class AppRoutes {
   static const String adminTransaction = '/admin/transaction';
   static const String adminExpense = '/admin/expense';
   static const String adminTaxCenter = '/admin/tax-center';
+  static const String adminAnalytics = '/admin/analytics';
   static const String adminSettings = '/admin/settings';
 }

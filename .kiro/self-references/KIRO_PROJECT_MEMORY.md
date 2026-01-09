@@ -442,12 +442,14 @@ Laba Bersih = Total Penjualan - Total HPP - Total Pengeluaran
 - [x] Tax center screen (UI with mock data)
 - [x] Admin main screen with navigation
 
-### Phase 4: Backend Integration 🔜 NEXT
+### Phase 4: Backend Integration 🔄 IN PROGRESS
 
-- [ ] Supabase setup
-- [ ] Data models with Freezed
-- [ ] Repository implementations
-- [ ] Real API integration
+- [x] Supabase setup (schema, RLS, triggers)
+- [x] Data models with Freezed (9 models)
+- [x] Repository interfaces (5 repos)
+- [x] Repository implementations (5 repos)
+- [x] Riverpod providers (7 providers)
+- [ ] Connect providers to UI screens
 - [ ] Offline sync with Hive
 
 ### Phase 5: Polish & Testing 📋 PLANNED
