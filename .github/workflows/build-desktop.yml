@@ -1,0 +1,157 @@
+# ============================================
+# GitHub Actions: Build PosFELIX Desktop
+# ============================================
+# File ini adalah "resep" untuk build aplikasi di cloud GitHub
+#
+# Cara pakai:
+# 1. Push file ini ke GitHub
+# 2. Buka repository di GitHub
+# 3. Klik tab "Actions"
+# 4. Pilih "Build Desktop" di sidebar kiri
+# 5. Klik "Run workflow" (tombol hijau)
+# 6. Tunggu selesai (~10-15 menit)
+# 7. Download artifact di bagian bawah
+# ============================================
+
+name: Build Desktop
+
+# Kapan workflow ini jalan?
+on:
+  # Manual trigger - klik tombol di GitHub
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to build"
+        required: true
+        default: "windows"
+        type: choice
+        options:
+          - windows
+          - linux
+          - macos
+          - all
+
+# Jobs = tugas-tugas yang dijalankan
+jobs:
+  # ==========================================
+  # BUILD WINDOWS
+  # ==========================================
+  build-windows:
+    # Hanya jalan jika pilih 'windows' atau 'all'
+    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+
+    # Pakai komputer Windows di cloud GitHub
+    runs-on: windows-latest
+
+    steps:
+      # 1. Download code dari repository
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Flutter
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      # 3. Aktifkan Windows desktop
+      - name: 🪟 Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      # 4. Download dependencies
+      - name: 📦 Get dependencies
+        run: flutter pub get
+
+      # 5. Build!
+      - name: 🔨 Build Windows Release
+        run: flutter build windows --release
+
+      # 6. Upload hasil build
+      - name: 📤 Upload Windows Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PosFELIX-Windows
+          path: build/windows/x64/runner/Release/
+          retention-days: 30
+
+  # ==========================================
+  # BUILD LINUX
+  # ==========================================
+  build-linux:
+    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # Install dependencies Linux
+      - name: 🐧 Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: 🐧 Enable Linux Desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: 📦 Get dependencies
+        run: flutter pub get
+
+      - name: 🔨 Build Linux Release
+        run: flutter build linux --release
+
+      - name: 📤 Upload Linux Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PosFELIX-Linux
+          path: build/linux/x64/release/bundle/
+          retention-days: 30
+
+  # ==========================================
+  # BUILD MACOS
+  # ==========================================
+  build-macos:
+    if: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' }}
+    runs-on: macos-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: 🍎 Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: 📦 Get dependencies
+        run: flutter pub get
+
+      - name: 🔨 Build macOS Release
+        run: flutter build macos --release
+
+      # Zip the .app bundle
+      - name: 📦 Zip macOS App
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r PosFELIX-macOS.zip *.app
+
+      - name: 📤 Upload macOS Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PosFELIX-macOS
+          path: build/macos/Build/Products/Release/PosFELIX-macOS.zip
+          retention-days: 30

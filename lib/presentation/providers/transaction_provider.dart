@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:posfelix/data/models/models.dart';
 import 'package:posfelix/domain/repositories/transaction_repository.dart';
+import 'package:posfelix/data/repositories/transaction_repository_impl.dart';
 import 'package:posfelix/core/services/connectivity_service.dart';
 import 'package:posfelix/core/services/offline_sync_manager.dart';
 import 'package:posfelix/injection_container.dart';
@@ -351,3 +352,62 @@ final transactionDetailStreamProvider =
       final repository = getIt<TransactionRepository>();
       return repository.getTransactionStream(transactionId);
     });
+
+/// Provider untuk mengambil transaksi berdasarkan date range
+/// Digunakan untuk fitur Riwayat Transaksi
+final transactionsForDateRangeProvider =
+    FutureProvider.family<List<TransactionModel>, DateRange>((
+      ref,
+      dateRange,
+    ) async {
+      if (!SupabaseConfig.isConfigured) {
+        return [];
+      }
+
+      final repository = getIt<TransactionRepository>();
+
+      try {
+        // Convert to UTC for query
+        final startUtc = DateTime(
+          dateRange.start.year,
+          dateRange.start.month,
+          dateRange.start.day,
+        ).toUtc();
+
+        final endUtc = DateTime(
+          dateRange.end.year,
+          dateRange.end.month,
+          dateRange.end.day,
+        ).add(const Duration(days: 1)).toUtc();
+
+        // Use lightweight query for transaction history
+        if (repository is TransactionRepositoryImpl) {
+          return await repository.getTransactionsLightweight(
+            startDate: startUtc,
+            endDate: endUtc,
+          );
+        } else {
+          return await repository.getTransactions(
+            startDate: startUtc,
+            endDate: endUtc,
+          );
+        }
+      } catch (e) {
+        AppLogger.error('Error fetching transactions for date range', e);
+        return [];
+      }
+    });
+
+/// Provider untuk melakukan refund transaksi
+/// Digunakan untuk fitur Refund di Riwayat Transaksi
+final refundTransactionProvider = FutureProvider.family<void, String>((
+  ref,
+  transactionId,
+) async {
+  if (!SupabaseConfig.isConfigured) {
+    throw Exception('Supabase not configured');
+  }
+
+  final repository = getIt<TransactionRepository>();
+  await repository.refundTransaction(transactionId);
+});

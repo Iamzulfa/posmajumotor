@@ -3,10 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../widgets/common/app_header.dart';
 import '../../../widgets/common/sync_status_widget.dart';
-import 'daily_expense_tab_v2.dart'; // 🔥 USE NEW WORKING VERSION
+import 'daily_expense_tab_v2.dart';
 import 'fixed_expense_tab.dart';
-import 'expense_form_modal.dart';
-// 🔥 REMOVED: fixed_expense_form_modal.dart import (no longer used)
+import 'transaction_history_tab.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -27,7 +26,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen>
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -45,7 +44,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen>
         child: Column(
           children: [
             AppHeader(
-              title: 'Pengeluaran',
+              title: 'Keuangan',
               syncStatus: SyncStatus.online,
               lastSyncTime: 'Real-time',
             ),
@@ -57,9 +56,11 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen>
                 labelColor: AppColors.primary,
                 unselectedLabelColor: AppColors.textGray,
                 indicatorColor: AppColors.primary,
+                labelStyle: const TextStyle(fontSize: 12),
                 tabs: const [
-                  Tab(text: 'Pengeluaran Harian'),
-                  Tab(text: 'Pengeluaran Tetap'),
+                  Tab(text: 'Pengeluaran'),
+                  Tab(text: 'Biaya Tetap'),
+                  Tab(text: 'Riwayat'),
                 ],
               ),
             ),
@@ -78,6 +79,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen>
                     },
                   ),
                   const FixedExpenseTab(),
+                  const TransactionHistoryTab(),
                 ],
               ),
             ),
@@ -86,10 +88,6 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen>
       ),
       // 🔥 REMOVED: Floating action button - now using universal gradient "Tambah" button in headers
     );
-  }
-
-  void _showAddExpenseDialog(BuildContext context) {
-    showExpenseFormModal(context);
   }
 
   // 🔥 REMOVED: _showAddFixedExpenseDialog method since it's no longer used

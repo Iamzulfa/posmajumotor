@@ -43,7 +43,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
       }
 
       if (endDate != null) {
-        query = query.lte('created_at', endDate.toIso8601String());
+        // Use lt (less than) for exclusive end date to match dashboard behavior
+        query = query.lt('created_at', endDate.toIso8601String());
       }
 
       if (tier != null) {
@@ -71,6 +72,52 @@ class TransactionRepositoryImpl implements TransactionRepository {
       return result;
     } catch (e) {
       AppLogger.error('Error fetching transactions', e);
+      rethrow;
+    }
+  }
+
+  /// Lightweight query untuk Riwayat Transaksi (tanpa items & users)
+  Future<List<TransactionModel>> getTransactionsLightweight({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? paymentStatus = 'COMPLETED',
+  }) async {
+    try {
+      PerformanceLogger.start('api_call_getTransactionsLightweight');
+
+      var query = _client.from('transactions').select('''
+        id,
+        transaction_number,
+        tier,
+        customer_name,
+        total,
+        payment_method,
+        payment_status,
+        created_at
+      ''');
+
+      if (startDate != null) {
+        query = query.gte('created_at', startDate.toIso8601String());
+      }
+
+      if (endDate != null) {
+        query = query.lt('created_at', endDate.toIso8601String());
+      }
+
+      if (paymentStatus != null) {
+        query = query.eq('payment_status', paymentStatus);
+      }
+
+      final response = await query.order('created_at', ascending: false);
+
+      final result = response
+          .map((json) => TransactionModel.fromJson(json))
+          .toList();
+
+      PerformanceLogger.end('api_call_getTransactionsLightweight');
+      return result;
+    } catch (e) {
+      AppLogger.error('Error fetching lightweight transactions', e);
       rethrow;
     }
   }
@@ -330,7 +377,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
       }
 
       if (endDate != null) {
-        query = query.lte('created_at', endDate.toIso8601String());
+        // Use lt (less than) for exclusive end date to match dashboard behavior
+        query = query.lt('created_at', endDate.toIso8601String());
       }
 
       final response = await query;

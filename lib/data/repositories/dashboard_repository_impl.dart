@@ -9,9 +9,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
   final SupabaseClient _client;
   final OfflineService _offlineService = OfflineService();
 
-  // Stream caching to prevent multiple subscriptions
-  Stream<DashboardData>? _cachedDashboardDataStream;
-  String? _cachedDashboardDataStreamDate; // Track which date the cache is for
+  // Stream caching for profit and tax indicators (less frequently updated)
   Stream<ProfitIndicator>? _cachedProfitIndicatorStream;
   final Map<String, Stream<TaxIndicator>> _cachedTaxIndicatorStreams = {};
 
@@ -227,26 +225,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Create a date key to invalidate cache when day changes
-    final dateKey = '${startOfDay.year}-${startOfDay.month}-${startOfDay.day}';
-
-    // If cache exists but is for a different day, invalidate it
-    if (_cachedDashboardDataStreamDate != dateKey) {
-      _cachedDashboardDataStream = null;
-      _cachedDashboardDataStreamDate = null;
-    }
-
-    if (_cachedDashboardDataStream != null) {
-      return _cachedDashboardDataStream!;
-    }
-
-    _cachedDashboardDataStreamDate = dateKey;
-    _cachedDashboardDataStream = getDashboardDataStreamForRange(
+    // Don't cache stream - let Riverpod handle caching via provider
+    // This allows ref.invalidate() to create a fresh stream
+    return getDashboardDataStreamForRange(
       startDate: startOfDay,
       endDate: endOfDay,
-    ).shareReplay(bufferSize: 1);
-
-    return _cachedDashboardDataStream!;
+    );
   }
 
   @override
@@ -259,31 +243,39 @@ class DashboardRepositoryImpl implements DashboardRepository {
         '🔍 Dashboard stream starting for range: $startDate to $endDate',
       );
 
-      // Use polling instead of Realtime to avoid connection issues
-      // Poll every 60 seconds for dashboard updates (reduced frequency for better performance)
-      return Stream.periodic(
-        const Duration(seconds: 60),
-        (_) => _fetchInitialDashboardData(startDate, endDate),
-      ).asyncExpand((future) => future.asStream()).distinct().handleError(
-        (error) {
-          AppLogger.error('Error fetching dashboard data', error);
-          // Don't rethrow - return empty data instead
-        },
-        test: (error) => true, // Handle all errors
-      );
+      // IMPORTANT: Emit initial data immediately, then poll for updates
+      // This prevents waiting for the first polling interval
+      return Stream.fromFuture(_fetchInitialDashboardData(startDate, endDate))
+          .asyncExpand((initialData) async* {
+            // Emit initial data first
+            yield initialData;
+
+            // Then poll for updates every 60 seconds
+            await for (final _ in Stream.periodic(
+              const Duration(seconds: 60),
+            )) {
+              try {
+                final data = await _fetchInitialDashboardData(
+                  startDate,
+                  endDate,
+                );
+                yield data;
+              } catch (e) {
+                AppLogger.error('Error in dashboard polling', e);
+              }
+            }
+          })
+          .distinct()
+          .handleError(
+            (error) {
+              AppLogger.error('Error fetching dashboard data', error);
+              // Don't rethrow - return empty data instead
+            },
+            test: (error) => true, // Handle all errors
+          );
     } catch (e) {
       AppLogger.error('❌ Error setting up dashboard data stream', e);
-      return Stream.value(
-        DashboardData(
-          totalTransactions: 0,
-          totalOmset: 0,
-          totalProfit: 0,
-          totalExpenses: 0,
-          averageTransaction: 0,
-          tierBreakdown: {'UMUM': 0, 'BENGKEL': 0, 'GROSSIR': 0},
-          paymentMethodBreakdown: {},
-        ),
-      );
+      return Stream.value(_emptyDashboardData());
     }
   }
 
@@ -291,7 +283,19 @@ class DashboardRepositoryImpl implements DashboardRepository {
     DateTime startDate,
     DateTime endDate,
   ) async {
+    final cacheKey = 'dashboard_data_${startDate.toIso8601String()}';
+
     try {
+      // Check if offline first
+      if (!_offlineService.isOnline) {
+        AppLogger.info('📦 Offline mode - using cached dashboard data');
+        final cached = _offlineService.getCachedData(cacheKey);
+        if (cached != null && cached is Map) {
+          return _mapToDashboardData(cached);
+        }
+        return _emptyDashboardData();
+      }
+
       // Convert to UTC for database query
       final startUtc = startDate.toUtc();
       final endUtc = endDate.toUtc();
@@ -300,14 +304,15 @@ class DashboardRepositoryImpl implements DashboardRepository {
         '📥 Fetching dashboard data from $startUtc to $endUtc (UTC)',
       );
 
-      // Get transactions - first try with COMPLETED status
+      // Get transactions with timeout - first try with COMPLETED status
       var transactionResponse = await _client
           .from('transactions')
           .select(
             'tier, total, total_hpp, profit, payment_method, payment_status, created_at',
           )
           .gte('created_at', startUtc.toIso8601String())
-          .lt('created_at', endUtc.toIso8601String());
+          .lt('created_at', endUtc.toIso8601String())
+          .timeout(const Duration(seconds: 10));
 
       AppLogger.info(
         '📦 Received ${transactionResponse.length} transactions (all statuses)',
@@ -331,7 +336,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
         '📦 Filtered to ${completedTransactions.length} COMPLETED transactions',
       );
 
-      // Get expenses
+      // Get expenses with timeout
       final startDateStr =
           '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
       final endDateStr =
@@ -341,7 +346,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
           .from('expenses')
           .select('amount')
           .gte('expense_date', startDateStr)
-          .lte('expense_date', endDateStr);
+          .lte('expense_date', endDateStr)
+          .timeout(const Duration(seconds: 10));
 
       AppLogger.info('📦 Received ${expenseResponse.length} expenses');
 
@@ -405,7 +411,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
         totalExpenses += fixedExpensesDaily;
 
         AppLogger.info(
-          '💡 Fixed expenses integrated: Monthly=Rp ${_formatNumber(totalFixedExpenses)}, Daily=Rp ${_formatNumber(fixedExpensesDaily)} (${daysInMonth} days in month)',
+          '💡 Fixed expenses integrated: Monthly=Rp ${_formatNumber(totalFixedExpenses)}, Daily=Rp ${_formatNumber(fixedExpensesDaily)} ($daysInMonth days in month)',
         );
       } catch (e) {
         AppLogger.error('Error fetching fixed expenses for dashboard', e);
@@ -746,6 +752,36 @@ class DashboardRepositoryImpl implements DashboardRepository {
     return number.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]}.',
+    );
+  }
+
+  /// Helper to convert cached Map to DashboardData
+  DashboardData _mapToDashboardData(Map cached) {
+    return DashboardData(
+      totalTransactions: (cached['totalTransactions'] as num?)?.toInt() ?? 0,
+      totalOmset: (cached['totalOmset'] as num?)?.toInt() ?? 0,
+      totalProfit: (cached['totalProfit'] as num?)?.toInt() ?? 0,
+      totalExpenses: (cached['totalExpenses'] as num?)?.toInt() ?? 0,
+      averageTransaction: (cached['averageTransaction'] as num?)?.toInt() ?? 0,
+      tierBreakdown: Map<String, int>.from(
+        cached['tierBreakdown'] as Map? ?? {},
+      ),
+      paymentMethodBreakdown: Map<String, int>.from(
+        cached['paymentMethodBreakdown'] as Map? ?? {},
+      ),
+    );
+  }
+
+  /// Helper to return empty DashboardData
+  DashboardData _emptyDashboardData() {
+    return DashboardData(
+      totalTransactions: 0,
+      totalOmset: 0,
+      totalProfit: 0,
+      totalExpenses: 0,
+      averageTransaction: 0,
+      tierBreakdown: {'UMUM': 0, 'BENGKEL': 0, 'GROSSIR': 0},
+      paymentMethodBreakdown: {},
     );
   }
 }

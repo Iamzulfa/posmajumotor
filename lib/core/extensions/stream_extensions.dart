@@ -91,4 +91,56 @@ extension StreamExtensions<T> on Stream<T> {
       ),
     );
   }
+
+  /// Concatenates this stream with other streams
+  /// Emits all values from this stream first, then from each subsequent stream
+  Stream<T> concatWith(Iterable<Stream<T>> others) {
+    final controller = StreamController<T>();
+
+    void subscribeToStreams() async {
+      try {
+        // First, listen to this stream
+        await for (final value in this) {
+          if (controller.isClosed) return;
+          controller.add(value);
+        }
+
+        // Then listen to each subsequent stream
+        for (final stream in others) {
+          await for (final value in stream) {
+            if (controller.isClosed) return;
+            controller.add(value);
+          }
+        }
+
+        if (!controller.isClosed) {
+          controller.close();
+        }
+      } catch (e, stackTrace) {
+        if (!controller.isClosed) {
+          controller.addError(e, stackTrace);
+        }
+      }
+    }
+
+    controller.onListen = subscribeToStreams;
+
+    return controller.stream;
+  }
+
+  /// Starts with an initial value before emitting stream values
+  Stream<T> startWith(T initialValue) {
+    final controller = StreamController<T>();
+
+    controller.onListen = () {
+      controller.add(initialValue);
+      listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+    };
+
+    return controller.stream;
+  }
 }

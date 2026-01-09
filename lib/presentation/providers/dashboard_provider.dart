@@ -428,6 +428,11 @@ final dashboardProvider =
 /// Cache for tier breakdown data per period
 final _tierBreakdownCache = <DashboardPeriod, Map<String, TierSummary>>{};
 
+/// Clear tier breakdown cache - call this when dashboard needs full refresh
+void clearDashboardCache() {
+  _tierBreakdownCache.clear();
+}
+
 /// Real-time dashboard data stream provider with period support
 /// Combines transaction summary, expenses, and tier breakdown
 /// Tier breakdown is cached per period to avoid unnecessary refreshes
@@ -436,6 +441,9 @@ final dashboardStreamProvider =
       ref,
       period,
     ) async* {
+      // Clear tier breakdown cache when provider is re-created (after invalidate)
+      _tierBreakdownCache.remove(period);
+
       if (!SupabaseConfig.isConfigured) {
         yield const DashboardState();
         return;

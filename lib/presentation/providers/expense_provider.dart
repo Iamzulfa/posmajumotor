@@ -315,3 +315,27 @@ final totalExpensesStreamProvider = StreamProvider.family<int, DateRange?>((
 });
 
 // DateRange is imported from transaction_provider.dart via providers.dart
+
+/// Provider untuk mengambil pengeluaran berdasarkan date range
+/// Digunakan untuk fitur Riwayat Transaksi
+final expensesForDateRangeProvider =
+    FutureProvider.family<List<ExpenseModel>, DateRange>((
+      ref,
+      dateRange,
+    ) async {
+      if (!SupabaseConfig.isConfigured) {
+        return [];
+      }
+      
+      final repository = getIt<ExpenseRepository>();
+      
+      try {
+        return await repository.getExpenses(
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        );
+      } catch (e) {
+        AppLogger.error('Error fetching expenses for date range', e);
+        return [];
+      }
+    });

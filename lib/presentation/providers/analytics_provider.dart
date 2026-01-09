@@ -6,11 +6,143 @@ import 'package:posfelix/injection_container.dart';
 import 'package:posfelix/config/constants/supabase_config.dart';
 import 'package:posfelix/core/utils/logger.dart';
 
-/// Analytics data provider with advanced filtering
+// Cache untuk analytics data
+final _analyticsCache = <String, AnalyticsData>{};
+final _cacheTimestamps = <String, DateTime>{};
+const _cacheDuration = Duration(minutes: 5);
+
+/// Check if cache is valid
+bool _isCacheValid(String key) {
+  final timestamp = _cacheTimestamps[key];
+  if (timestamp == null) return false;
+  return DateTime.now().difference(timestamp) < _cacheDuration;
+}
+
+/// Get cache key from filter
+String _getCacheKey(AnalyticsFilter filter) {
+  return '${filter.period}_${filter.specificDate}_${filter.year}_${filter.month}_${filter.week}';
+}
+
+/// Lightweight provider for basic metrics only (used by Transaction Details tab)
+final analyticsBasicMetricsProvider =
+    FutureProvider.family<AnalyticsBasicMetrics, AnalyticsFilter>((
+      ref,
+      filter,
+    ) async {
+      if (!SupabaseConfig.isConfigured) {
+        return AnalyticsBasicMetrics.empty();
+      }
+
+      final transactionRepo = getIt<TransactionRepository>();
+
+      try {
+        final dateRange = filter.getDateRange();
+
+        AppLogger.info('📊 Analytics Basic Metrics - Period: ${filter.period}');
+        AppLogger.info(
+          '📊 Analytics Basic Metrics - Start (UTC): ${dateRange.startDate.toIso8601String()}',
+        );
+        AppLogger.info(
+          '📊 Analytics Basic Metrics - End (UTC): ${dateRange.endDate.toIso8601String()}',
+        );
+
+        // Only fetch transactions and tier breakdown (lighter query)
+        final results = await Future.wait([
+          transactionRepo.getTransactions(
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+            paymentStatus: 'COMPLETED', // Only completed transactions
+          ),
+          transactionRepo.getTierBreakdown(
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+          ),
+        ]);
+
+        final transactions = results[0] as List<TransactionModel>;
+        final tierBreakdown = results[1] as Map<String, TierSummary>;
+
+        AppLogger.info(
+          '📊 Analytics Basic Metrics - Received ${transactions.length} transactions',
+        );
+
+        // Log transaction details for debugging
+        for (final tx in transactions) {
+          AppLogger.info(
+            '📊 Transaction: ${tx.transactionNumber}, created: ${tx.createdAt?.toIso8601String()}, status: ${tx.paymentStatus}, total: ${tx.total}',
+          );
+        }
+
+        return AnalyticsBasicMetrics.fromTransactions(
+          transactions: transactions,
+          tierBreakdown: tierBreakdown,
+        );
+      } catch (e) {
+        AppLogger.error('Error fetching basic metrics', e);
+        rethrow;
+      }
+    });
+
+/// Provider for profit analysis (used by Profit Analysis tab)
+final analyticsProfitProvider =
+    FutureProvider.family<AnalyticsProfitData, AnalyticsFilter>((
+      ref,
+      filter,
+    ) async {
+      if (!SupabaseConfig.isConfigured) {
+        return AnalyticsProfitData.empty();
+      }
+
+      final transactionRepo = getIt<TransactionRepository>();
+      final expenseRepo = getIt<ExpenseRepository>();
+
+      try {
+        final dateRange = filter.getDateRange();
+
+        final results = await Future.wait([
+          transactionRepo.getTransactions(
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+            paymentStatus: 'COMPLETED', // Only completed transactions
+          ),
+          transactionRepo.getTierBreakdown(
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+          ),
+          expenseRepo.getExpenses(
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+          ),
+        ]);
+
+        final transactions = results[0] as List<TransactionModel>;
+        final tierBreakdown = results[1] as Map<String, TierSummary>;
+        final expenses = results[2] as List<ExpenseModel>;
+
+        return AnalyticsProfitData.fromData(
+          transactions: transactions,
+          tierBreakdown: tierBreakdown,
+          expenses: expenses,
+          filter: filter,
+        );
+      } catch (e) {
+        AppLogger.error('Error fetching profit data', e);
+        rethrow;
+      }
+    });
+
+/// Analytics data provider with advanced filtering (full data - used when needed)
 final analyticsDataProvider =
     FutureProvider.family<AnalyticsData, AnalyticsFilter>((ref, filter) async {
       if (!SupabaseConfig.isConfigured) {
         return AnalyticsData.empty();
+      }
+
+      // Check cache first
+      final cacheKey = _getCacheKey(filter);
+      if (_isCacheValid(cacheKey) && _analyticsCache.containsKey(cacheKey)) {
+        AppLogger.info('📦 Using cached analytics data');
+        return _analyticsCache[cacheKey]!;
       }
 
       final transactionRepo = getIt<TransactionRepository>();
@@ -39,12 +171,18 @@ final analyticsDataProvider =
         final tierBreakdown = results[1] as Map<String, TierSummary>;
         final expenses = results[2] as List<ExpenseModel>;
 
-        return AnalyticsData.fromTransactions(
+        final data = AnalyticsData.fromTransactions(
           transactions: transactions,
           tierBreakdown: tierBreakdown,
           expenses: expenses,
           filter: filter,
         );
+
+        // Cache the result
+        _analyticsCache[cacheKey] = data;
+        _cacheTimestamps[cacheKey] = DateTime.now();
+
+        return data;
       } catch (e) {
         AppLogger.error('Error fetching analytics data', e);
         rethrow;
@@ -92,23 +230,33 @@ class AnalyticsFilter {
     switch (period) {
       case AnalyticsPeriod.daily:
         final date = specificDate!;
+        // Use local time for start of day, then convert to UTC for query
+        // End date is start of next day (exclusive) to match dashboard behavior
+        final startLocal = DateTime(date.year, date.month, date.day);
+        final endLocal = startLocal.add(const Duration(days: 1));
         return DateRange(
-          startDate: DateTime(date.year, date.month, date.day),
-          endDate: DateTime(date.year, date.month, date.day, 23, 59, 59),
+          startDate: startLocal.toUtc(),
+          endDate: endLocal.toUtc(),
         );
 
       case AnalyticsPeriod.weekly:
         final firstDayOfMonth = DateTime(year!, month!, 1);
-        final startDate = firstDayOfMonth.add(Duration(days: (week! - 1) * 7));
-        final endDate = startDate.add(
-          const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+        final startLocal = firstDayOfMonth.add(Duration(days: (week! - 1) * 7));
+        // End is start of day after the week ends (exclusive)
+        final endLocal = startLocal.add(const Duration(days: 7));
+        return DateRange(
+          startDate: startLocal.toUtc(),
+          endDate: endLocal.toUtc(),
         );
-        return DateRange(startDate: startDate, endDate: endDate);
 
       case AnalyticsPeriod.monthly:
-        final startDate = DateTime(year!, month!, 1);
-        final endDate = DateTime(year!, month! + 1, 0, 23, 59, 59);
-        return DateRange(startDate: startDate, endDate: endDate);
+        final startLocal = DateTime(year!, month!, 1);
+        // End is start of next month (exclusive)
+        final endLocal = DateTime(year!, month! + 1, 1);
+        return DateRange(
+          startDate: startLocal.toUtc(),
+          endDate: endLocal.toUtc(),
+        );
     }
   }
 
@@ -558,6 +706,202 @@ class DailyAnalytics {
       expenses: expenses ?? this.expenses,
       netProfit: netProfit ?? (this.profit - (expenses ?? this.expenses)),
       paymentBreakdown: paymentBreakdown ?? this.paymentBreakdown,
+    );
+  }
+}
+
+/// Lightweight basic metrics for Transaction Details tab
+class AnalyticsBasicMetrics {
+  final int totalTransactions;
+  final int totalOmset;
+  final int totalHpp;
+  final int totalProfit;
+  final double averageMargin;
+  final Map<String, TierAnalytics> tierBreakdown;
+  final Map<String, PaymentMethodAnalytics> paymentBreakdown;
+  final List<ProductAnalytics> topProducts;
+
+  const AnalyticsBasicMetrics({
+    required this.totalTransactions,
+    required this.totalOmset,
+    required this.totalHpp,
+    required this.totalProfit,
+    required this.averageMargin,
+    required this.tierBreakdown,
+    required this.paymentBreakdown,
+    required this.topProducts,
+  });
+
+  factory AnalyticsBasicMetrics.empty() {
+    return const AnalyticsBasicMetrics(
+      totalTransactions: 0,
+      totalOmset: 0,
+      totalHpp: 0,
+      totalProfit: 0,
+      averageMargin: 0,
+      tierBreakdown: {},
+      paymentBreakdown: {},
+      topProducts: [],
+    );
+  }
+
+  factory AnalyticsBasicMetrics.fromTransactions({
+    required List<TransactionModel> transactions,
+    required Map<String, TierSummary> tierBreakdown,
+  }) {
+    final totalTransactions = transactions.length;
+    final totalOmset = transactions.fold<int>(0, (sum, t) => sum + t.total);
+    final totalHpp = transactions.fold<int>(0, (sum, t) => sum + t.totalHpp);
+    final totalProfit = transactions.fold<int>(0, (sum, t) => sum + t.profit);
+
+    // Calculate tier analytics
+    final tierAnalytics = <String, TierAnalytics>{};
+    for (final entry in tierBreakdown.entries) {
+      final tierTransactions = transactions
+          .where((t) => t.tier == entry.key)
+          .toList();
+      tierAnalytics[entry.key] = TierAnalytics.fromTransactions(
+        tier: entry.key,
+        transactions: tierTransactions,
+        summary: entry.value,
+      );
+    }
+
+    // Calculate payment method breakdown
+    final paymentAnalytics = <String, PaymentMethodAnalytics>{};
+    final paymentGroups = <String, List<TransactionModel>>{};
+
+    for (final transaction in transactions) {
+      paymentGroups
+          .putIfAbsent(transaction.paymentMethod, () => [])
+          .add(transaction);
+    }
+
+    for (final entry in paymentGroups.entries) {
+      paymentAnalytics[entry.key] = PaymentMethodAnalytics.fromTransactions(
+        paymentMethod: entry.key,
+        transactions: entry.value,
+      );
+    }
+
+    // Calculate top products
+    final productMap = <String, List<TransactionItemModel>>{};
+    for (final transaction in transactions) {
+      if (transaction.items != null) {
+        for (final item in transaction.items!) {
+          productMap.putIfAbsent(item.productId, () => []).add(item);
+        }
+      }
+    }
+
+    final topProducts =
+        productMap.isEmpty
+              ? <ProductAnalytics>[]
+              : productMap.entries
+                    .map(
+                      (entry) => ProductAnalytics.fromItems(
+                        productId: entry.key,
+                        productName: entry.value.first.productName,
+                        items: entry.value,
+                      ),
+                    )
+                    .toList()
+          ..sort((a, b) => b.totalRevenue.compareTo(a.totalRevenue));
+
+    final averageMargin = totalHpp > 0
+        ? ((totalProfit / totalHpp) * 100).toDouble()
+        : 0.0;
+
+    return AnalyticsBasicMetrics(
+      totalTransactions: totalTransactions,
+      totalOmset: totalOmset,
+      totalHpp: totalHpp,
+      totalProfit: totalProfit,
+      averageMargin: averageMargin,
+      tierBreakdown: tierAnalytics,
+      paymentBreakdown: paymentAnalytics,
+      topProducts: topProducts.take(10).toList(),
+    );
+  }
+}
+
+/// Profit analysis data for Profit Analysis tab
+class AnalyticsProfitData {
+  final int totalOmset;
+  final int totalHpp;
+  final int totalProfit;
+  final int totalExpenses;
+  final int netProfit;
+  final double hppRatio;
+  final Map<String, TierAnalytics> tierBreakdown;
+  final List<DailyAnalytics> dailyData;
+
+  const AnalyticsProfitData({
+    required this.totalOmset,
+    required this.totalHpp,
+    required this.totalProfit,
+    required this.totalExpenses,
+    required this.netProfit,
+    required this.hppRatio,
+    required this.tierBreakdown,
+    required this.dailyData,
+  });
+
+  factory AnalyticsProfitData.empty() {
+    return const AnalyticsProfitData(
+      totalOmset: 0,
+      totalHpp: 0,
+      totalProfit: 0,
+      totalExpenses: 0,
+      netProfit: 0,
+      hppRatio: 0,
+      tierBreakdown: {},
+      dailyData: [],
+    );
+  }
+
+  factory AnalyticsProfitData.fromData({
+    required List<TransactionModel> transactions,
+    required Map<String, TierSummary> tierBreakdown,
+    required List<ExpenseModel> expenses,
+    required AnalyticsFilter filter,
+  }) {
+    final totalOmset = transactions.fold<int>(0, (sum, t) => sum + t.total);
+    final totalHpp = transactions.fold<int>(0, (sum, t) => sum + t.totalHpp);
+    final totalProfit = transactions.fold<int>(0, (sum, t) => sum + t.profit);
+    final totalExpenses = expenses.fold<int>(0, (sum, e) => sum + e.amount);
+    final netProfit = totalProfit - totalExpenses;
+    final hppRatio = totalOmset > 0 ? (totalHpp / totalOmset) * 100 : 0.0;
+
+    // Calculate tier analytics
+    final tierAnalytics = <String, TierAnalytics>{};
+    for (final entry in tierBreakdown.entries) {
+      final tierTransactions = transactions
+          .where((t) => t.tier == entry.key)
+          .toList();
+      tierAnalytics[entry.key] = TierAnalytics.fromTransactions(
+        tier: entry.key,
+        transactions: tierTransactions,
+        summary: entry.value,
+      );
+    }
+
+    // Calculate daily data
+    final dailyData = AnalyticsData._calculateDailyData(
+      transactions,
+      expenses,
+      filter,
+    );
+
+    return AnalyticsProfitData(
+      totalOmset: totalOmset,
+      totalHpp: totalHpp,
+      totalProfit: totalProfit,
+      totalExpenses: totalExpenses,
+      netProfit: netProfit,
+      hppRatio: hppRatio,
+      tierBreakdown: tierAnalytics,
+      dailyData: dailyData,
     );
   }
 }

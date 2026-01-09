@@ -14,6 +14,8 @@ import '../../../widgets/common/post_transaction_receipt_modal.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/transaction_provider.dart';
+import '../../../providers/dashboard_provider.dart';
+import '../../../providers/analytics_provider.dart';
 
 class TransactionScreen extends ConsumerStatefulWidget {
   const TransactionScreen({super.key});
@@ -1100,6 +1102,13 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
 
       // Invalidate stream to refresh products (stock updated)
       ref.invalidate(productsStreamProvider);
+
+      // Invalidate dashboard stream to refresh dashboard data immediately
+      ref.invalidate(dashboardStreamProvider);
+
+      // Invalidate analytics providers to refresh analytics data
+      ref.invalidate(analyticsBasicMetricsProvider);
+      ref.invalidate(analyticsProfitProvider);
 
       // Show receipt modal
       await showPostTransactionReceiptModal(context, transaction: transaction);
