@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'config/theme/app_theme.dart';
@@ -21,6 +22,10 @@ void main() async {
 
   // Initialize in parallel for faster startup
   try {
+    // Load environment variables first
+    await dotenv.load(fileName: '.env');
+    AppLogger.info('Environment loaded: ${SupabaseConfig.environment}');
+
     await Future.wait([_initializeHive(), _initializeSupabase()]);
 
     // Initialize offline service

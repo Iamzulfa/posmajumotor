@@ -48,7 +48,15 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      # 2. Setup Flutter
+      # 2. Create .env file from secrets
+      - name: 🔐 Create .env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "APP_ENV=production" >> .env
+          echo "DEBUG_MODE=false" >> .env
+
+      # 3. Setup Flutter
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -56,15 +64,15 @@ jobs:
           channel: "stable"
           cache: true
 
-      # 3. Aktifkan Windows desktop
+      # 4. Aktifkan Windows desktop
       - name: 🪟 Enable Windows Desktop
         run: flutter config --enable-windows-desktop
 
-      # 4. Download dependencies
+      # 5. Download dependencies
       - name: 📦 Get dependencies
         run: flutter pub get
 
-      # 5. Build!
+      # 6. Build!
       - name: 🔨 Build Windows Release
         run: flutter build windows --release
 
@@ -86,6 +94,14 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+
+      # Create .env file from secrets
+      - name: 🔐 Create .env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "APP_ENV=production" >> .env
+          echo "DEBUG_MODE=false" >> .env
 
       # Install dependencies Linux
       - name: 🐧 Install Linux dependencies
@@ -126,6 +142,14 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+
+      # Create .env file from secrets
+      - name: 🔐 Create .env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "APP_ENV=production" >> .env
+          echo "DEBUG_MODE=false" >> .env
 
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2

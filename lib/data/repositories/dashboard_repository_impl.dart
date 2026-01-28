@@ -243,36 +243,120 @@ class DashboardRepositoryImpl implements DashboardRepository {
         '🔍 Dashboard stream starting for range: $startDate to $endDate',
       );
 
-      // IMPORTANT: Emit initial data immediately, then poll for updates
-      // This prevents waiting for the first polling interval
-      return Stream.fromFuture(_fetchInitialDashboardData(startDate, endDate))
-          .asyncExpand((initialData) async* {
-            // Emit initial data first
-            yield initialData;
+      // Create a StreamController to manage the stream
+      final controller = StreamController<DashboardData>.broadcast();
 
-            // Then poll for updates every 60 seconds
-            await for (final _ in Stream.periodic(
-              const Duration(seconds: 60),
-            )) {
-              try {
-                final data = await _fetchInitialDashboardData(
-                  startDate,
-                  endDate,
-                );
-                yield data;
-              } catch (e) {
-                AppLogger.error('Error in dashboard polling', e);
-              }
+      // Generate unique channel names to avoid conflicts
+      final channelId = DateTime.now().millisecondsSinceEpoch;
+      RealtimeChannel? txChannel;
+      RealtimeChannel? expChannel;
+      StreamSubscription? pollingSubscription;
+
+      // Emit initial data immediately
+      _fetchInitialDashboardData(startDate, endDate)
+          .then((data) {
+            if (!controller.isClosed) {
+              controller.add(data);
             }
           })
-          .distinct()
-          .handleError(
-            (error) {
-              AppLogger.error('Error fetching dashboard data', error);
-              // Don't rethrow - return empty data instead
+          .catchError((e) {
+            AppLogger.error('Error fetching initial dashboard data', e);
+            if (!controller.isClosed) {
+              controller.add(_emptyDashboardData());
+            }
+          });
+
+      // Setup Supabase Realtime subscription for transactions
+      txChannel = _client
+          .channel('dashboard_tx_$channelId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'transactions',
+            callback: (payload) {
+              AppLogger.info(
+                '🔔 Realtime: Transaction change detected - ${payload.eventType}',
+              );
+              // Refetch dashboard data when transaction changes
+              _fetchInitialDashboardData(startDate, endDate)
+                  .then((data) {
+                    if (!controller.isClosed) {
+                      controller.add(data);
+                    }
+                  })
+                  .catchError((e) {
+                    AppLogger.error(
+                      'Error refetching dashboard after transaction change',
+                      e,
+                    );
+                  });
             },
-            test: (error) => true, // Handle all errors
-          );
+          )
+          .subscribe((status, [error]) {
+            AppLogger.info('🔔 Transaction channel status: $status');
+            if (error != null) {
+              AppLogger.error('Transaction channel error', error);
+            }
+          });
+
+      // Setup Supabase Realtime subscription for expenses
+      expChannel = _client
+          .channel('dashboard_exp_$channelId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'expenses',
+            callback: (payload) {
+              AppLogger.info(
+                '🔔 Realtime: Expense change detected - ${payload.eventType}',
+              );
+              // Refetch dashboard data when expense changes
+              _fetchInitialDashboardData(startDate, endDate)
+                  .then((data) {
+                    if (!controller.isClosed) {
+                      controller.add(data);
+                    }
+                  })
+                  .catchError((e) {
+                    AppLogger.error(
+                      'Error refetching dashboard after expense change',
+                      e,
+                    );
+                  });
+            },
+          )
+          .subscribe((status, [error]) {
+            AppLogger.info('🔔 Expense channel status: $status');
+            if (error != null) {
+              AppLogger.error('Expense channel error', error);
+            }
+          });
+
+      // Also keep polling as fallback (every 60 seconds)
+      final pollingTimer = Stream.periodic(const Duration(seconds: 60));
+      pollingSubscription = pollingTimer.listen((_) {
+        _fetchInitialDashboardData(startDate, endDate)
+            .then((data) {
+              if (!controller.isClosed) {
+                controller.add(data);
+              }
+            })
+            .catchError((e) {
+              AppLogger.error('Error in dashboard polling', e);
+            });
+      });
+
+      // Cleanup when stream is cancelled
+      controller.onCancel = () {
+        AppLogger.info('🔔 Dashboard stream cancelled, cleaning up channels');
+        txChannel?.unsubscribe();
+        expChannel?.unsubscribe();
+        pollingSubscription?.cancel();
+      };
+
+      return controller.stream.distinct().handleError((error) {
+        AppLogger.error('Error fetching dashboard data', error);
+      }, test: (error) => true);
     } catch (e) {
       AppLogger.error('❌ Error setting up dashboard data stream', e);
       return Stream.value(_emptyDashboardData());

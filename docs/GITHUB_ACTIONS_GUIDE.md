@@ -4,6 +4,45 @@
 
 GitHub Actions adalah fitur CI/CD gratis dari GitHub yang memungkinkan kamu menjalankan script otomatis di server GitHub. Untuk PosFELIX, kita gunakan untuk build aplikasi desktop tanpa perlu install toolchain di laptop.
 
+## ⚠️ PENTING: Setup Secrets Dulu!
+
+Sebelum build, kamu HARUS setup GitHub Secrets untuk credentials Supabase:
+
+### Cara Setup Secrets:
+
+1. Buka repository di GitHub
+2. Klik **Settings** (tab paling kanan)
+3. Di sidebar kiri, klik **Secrets and variables** → **Actions**
+4. Klik **New repository secret**
+5. Tambahkan 2 secrets:
+
+| Name                | Value                                     |
+| ------------------- | ----------------------------------------- |
+| `SUPABASE_URL`      | `https://your-project.supabase.co`        |
+| `SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Settings > Secrets and variables > Actions                  │
+│                                                             │
+│ Repository secrets                                          │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ SUPABASE_URL         Updated 2 days ago    [Update]    │ │
+│ │ SUPABASE_ANON_KEY    Updated 2 days ago    [Update]    │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ [New repository secret]                                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Kenapa perlu secrets?**
+
+- Credentials tidak boleh di-commit ke Git (security risk!)
+- GitHub Secrets terenkripsi dan aman
+- Hanya bisa diakses saat workflow jalan
+
+---
+
 ## Cara Pakai (Step by Step)
 
 ### 1. Push Code ke GitHub

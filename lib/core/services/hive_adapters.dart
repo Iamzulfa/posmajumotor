@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:posfelix/core/utils/logger.dart';
+import 'package:posfelix/core/services/secure_storage_service.dart';
 import 'package:posfelix/domain/repositories/dashboard_repository.dart';
 
 part 'hive_adapters.g.dart';
@@ -52,24 +53,67 @@ Future<void> registerHiveAdapters() async {
   }
 }
 
-/// Open all required Hive boxes
+/// Open all required Hive boxes with encryption
 Future<void> openHiveBoxes() async {
   try {
-    // Open cache metadata box
-    await Hive.openBox<CacheMetadata>(HiveBoxes.cacheMetadata);
+    // Get encryption cipher from secure storage
+    final cipher = await SecureStorageService.instance.getHiveCipher();
+    AppLogger.info('🔐 Hive encryption cipher ready');
 
-    // Open products cache box (stores as JSON strings for flexibility)
-    await Hive.openBox<String>(HiveBoxes.productsCache);
+    // Open cache metadata box (encrypted)
+    await Hive.openBox<CacheMetadata>(
+      HiveBoxes.cacheMetadata,
+      encryptionCipher: cipher,
+    );
 
-    // Open transactions queue box
-    await Hive.openBox<QueuedTransaction>(HiveBoxes.transactionsQueue);
+    // Open products cache box (encrypted)
+    await Hive.openBox<String>(
+      HiveBoxes.productsCache,
+      encryptionCipher: cipher,
+    );
 
-    // Open expenses cache box
-    await Hive.openBox<String>(HiveBoxes.expensesCache);
+    // Open transactions queue box (encrypted - contains sensitive transaction data)
+    await Hive.openBox<QueuedTransaction>(
+      HiveBoxes.transactionsQueue,
+      encryptionCipher: cipher,
+    );
 
-    AppLogger.info('Hive boxes opened successfully');
+    // Open expenses cache box (encrypted)
+    await Hive.openBox<String>(
+      HiveBoxes.expensesCache,
+      encryptionCipher: cipher,
+    );
+
+    AppLogger.info('🔐 Hive boxes opened with encryption');
   } catch (e) {
     AppLogger.error('Error opening Hive boxes', e);
+    // Fallback: try to open without encryption (for migration)
+    await _openBoxesWithoutEncryption();
+  }
+}
+
+/// Fallback: Open boxes without encryption (for migration scenarios)
+Future<void> _openBoxesWithoutEncryption() async {
+  AppLogger.warning('⚠️ Opening Hive boxes WITHOUT encryption (fallback)');
+
+  try {
+    if (!Hive.isBoxOpen(HiveBoxes.cacheMetadata)) {
+      await Hive.openBox<CacheMetadata>(HiveBoxes.cacheMetadata);
+    }
+    if (!Hive.isBoxOpen(HiveBoxes.productsCache)) {
+      await Hive.openBox<String>(HiveBoxes.productsCache);
+    }
+    if (!Hive.isBoxOpen(HiveBoxes.transactionsQueue)) {
+      await Hive.openBox<QueuedTransaction>(HiveBoxes.transactionsQueue);
+    }
+    if (!Hive.isBoxOpen(HiveBoxes.expensesCache)) {
+      await Hive.openBox<String>(HiveBoxes.expensesCache);
+    }
+
+    AppLogger.info('Hive boxes opened (unencrypted fallback)');
+  } catch (e) {
+    AppLogger.error('Failed to open Hive boxes even without encryption', e);
+    rethrow;
   }
 }
 
