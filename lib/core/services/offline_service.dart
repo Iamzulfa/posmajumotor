@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
+import 'package:posfelix/core/services/secure_storage_service.dart';
 
 /// Service untuk manage offline mode dan local caching
 class OfflineService extends ChangeNotifier {
@@ -28,9 +29,17 @@ class OfflineService extends ChangeNotifier {
       // Initialize Hive
       await Hive.initFlutter();
 
-      // Open boxes
-      _cacheBox = await Hive.openBox('offline_cache');
-      _syncQueueBox = await Hive.openBox('sync_queue');
+      // Get encryption cipher
+      final cipher = await SecureStorageService.instance.getHiveCipher();
+
+      // Open encrypted boxes
+      _cacheBox = await Hive.openBox('offline_cache', encryptionCipher: cipher);
+      _syncQueueBox = await Hive.openBox(
+        'sync_queue',
+        encryptionCipher: cipher,
+      );
+
+      _logger.i('🔐 Offline cache boxes opened with encryption');
 
       // Listen to connectivity changes
       _connectivity.onConnectivityChanged.listen((result) {
@@ -56,6 +65,27 @@ class OfflineService extends ChangeNotifier {
       );
     } catch (e) {
       _logger.e('Error initializing offline service: $e');
+      // Fallback without encryption
+      await _initializeWithoutEncryption();
+    }
+  }
+
+  /// Fallback initialization without encryption
+  Future<void> _initializeWithoutEncryption() async {
+    try {
+      _logger.w(
+        '⚠️ Initializing offline service WITHOUT encryption (fallback)',
+      );
+
+      if (!Hive.isBoxOpen('offline_cache')) {
+        _cacheBox = await Hive.openBox('offline_cache');
+      }
+      if (!Hive.isBoxOpen('sync_queue')) {
+        _syncQueueBox = await Hive.openBox('sync_queue');
+      }
+    } catch (e) {
+      _logger.e('Failed to initialize offline service: $e');
+      rethrow;
     }
   }
 
